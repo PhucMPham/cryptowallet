@@ -64,12 +64,14 @@ interface AddP2PTransactionDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess?: () => void;
+  editTransaction?: any;
 }
 
 export function AddP2PTransactionDialog({
   open,
   onOpenChange,
   onSuccess,
+  editTransaction,
 }: AddP2PTransactionDialogProps) {
   const [isCalculating, setIsCalculating] = useState(false);
   const [autoCalculatedField, setAutoCalculatedField] = useState<"cryptoAmount" | "exchangeRate" | null>(null);
@@ -113,13 +115,41 @@ export function AddP2PTransactionDialog({
     },
   });
 
+  const updateTransaction = api.p2p.updateTransaction.useMutation({
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "P2P transaction updated successfully",
+      });
+      form.reset();
+      onOpenChange(false);
+      onSuccess?.();
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update transaction",
+        variant: "destructive",
+      });
+    },
+  });
+
   const onSubmit = (values: z.infer<typeof formSchema>) => {
-    addTransaction.mutate({
+    const payload = {
       ...values,
       cryptoAmount: parseFloat(values.cryptoAmount),
       fiatAmount: parseFloat(values.fiatAmount),
       exchangeRate: parseFloat(values.exchangeRate),
-    });
+    };
+
+    if (editTransaction) {
+      updateTransaction.mutate({
+        id: editTransaction.id,
+        ...payload,
+      });
+    } else {
+      addTransaction.mutate(payload);
+    }
   };
 
   // Helper function to format number with proper precision
@@ -131,6 +161,43 @@ export function AddP2PTransactionDialog({
     // Handle normal numbers
     return num.toFixed(decimals);
   };
+
+  // Populate form when editing
+  useEffect(() => {
+    if (editTransaction && open) {
+      form.reset({
+        type: editTransaction.type,
+        crypto: editTransaction.crypto,
+        cryptoAmount: editTransaction.cryptoAmount.toString(),
+        fiatCurrency: editTransaction.fiatCurrency,
+        fiatAmount: editTransaction.fiatAmount.toString(),
+        exchangeRate: editTransaction.exchangeRate.toString(),
+        platform: editTransaction.platform || "",
+        counterparty: editTransaction.counterparty || "",
+        paymentMethod: editTransaction.paymentMethod || "",
+        bankName: editTransaction.bankName || "",
+        transactionId: editTransaction.transactionId || "",
+        notes: editTransaction.notes || "",
+        transactionDate: new Date(editTransaction.transactionDate),
+      });
+    } else if (!editTransaction && open) {
+      form.reset({
+        type: "buy",
+        crypto: "USDT",
+        fiatCurrency: "VND",
+        cryptoAmount: "",
+        fiatAmount: "",
+        exchangeRate: "",
+        platform: "Binance P2P",
+        paymentMethod: "Bank Transfer",
+        bankName: "",
+        counterparty: "",
+        transactionId: "",
+        notes: "",
+        transactionDate: new Date(),
+      });
+    }
+  }, [editTransaction, open, form]);
 
   // Auto-calculate exchange rate or USDT amount based on input
   useEffect(() => {
@@ -184,9 +251,9 @@ export function AddP2PTransactionDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
-          <DialogTitle>Add P2P Transaction</DialogTitle>
+          <DialogTitle>{editTransaction ? "Edit P2P Transaction" : "Add P2P Transaction"}</DialogTitle>
           <DialogDescription>
-            Record your P2P USDT purchase or sale with VND exchange rate
+            {editTransaction ? "Update your P2P USDT transaction details" : "Record your P2P USDT purchase or sale with VND exchange rate"}
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
@@ -477,8 +544,11 @@ export function AddP2PTransactionDialog({
               >
                 Cancel
               </Button>
-              <Button type="submit" disabled={addTransaction.isPending}>
-                {addTransaction.isPending ? "Adding..." : "Add Transaction"}
+              <Button type="submit" disabled={addTransaction.isPending || updateTransaction.isPending}>
+                {editTransaction
+                  ? (updateTransaction.isPending ? "Updating..." : "Update Transaction")
+                  : (addTransaction.isPending ? "Adding..." : "Add Transaction")
+                }
               </Button>
             </DialogFooter>
           </form>

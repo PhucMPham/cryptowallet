@@ -19,13 +19,26 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { format } from "date-fns";
-import { Plus, TrendingUp, TrendingDown, RefreshCw } from "lucide-react";
+import { Plus, TrendingUp, TrendingDown, RefreshCw, Info, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { AddP2PTransactionDialog } from "@/components/p2p/AddP2PTransactionDialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export default function P2PPage() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [editingTransaction, setEditingTransaction] = useState<any>(null);
   const [selectedCrypto] = useState("USDT");
   const [selectedFiat] = useState("VND");
 
@@ -41,6 +54,13 @@ export default function P2PPage() {
 
   const fetchCurrentRate = api.p2p.fetchCurrentRate.useMutation({
     onSuccess: () => {
+      refetchSummary();
+    },
+  });
+
+  const deleteTransaction = api.p2p.deleteTransaction.useMutation({
+    onSuccess: () => {
+      refetchTransactions();
       refetchSummary();
     },
   });
@@ -67,19 +87,20 @@ export default function P2PPage() {
   };
 
   return (
-    <div className="container mx-auto py-6 space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold">P2P Trading</h1>
-          <p className="text-muted-foreground">
-            Track your P2P USDT purchases and calculate profit/loss
-          </p>
+    <TooltipProvider>
+      <div className="container mx-auto py-6 space-y-6">
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl font-bold">P2P Trading</h1>
+            <p className="text-muted-foreground">
+              Track your P2P USDT purchases and calculate profit/loss
+            </p>
+          </div>
+          <Button onClick={() => setIsAddDialogOpen(true)}>
+            <Plus className="mr-2 h-4 w-4" />
+            Add Transaction
+          </Button>
         </div>
-        <Button onClick={() => setIsAddDialogOpen(true)}>
-          <Plus className="mr-2 h-4 w-4" />
-          Add Transaction
-        </Button>
-      </div>
 
       {/* Portfolio Summary */}
       {portfolioSummary && (
@@ -172,11 +193,12 @@ export default function P2PPage() {
                 <TableHead className="text-right">Total</TableHead>
                 <TableHead>Platform</TableHead>
                 <TableHead>Counterparty</TableHead>
+                <TableHead className="w-[50px]">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {transactions?.map((tx) => (
-                <TableRow key={tx.id}>
+                <TableRow key={tx.id} className="group relative">
                   <TableCell>{format(new Date(tx.transactionDate), "dd/MM/yyyy HH:mm")}</TableCell>
                   <TableCell>
                     <Badge variant={tx.type === "buy" ? "default" : "secondary"}>
@@ -199,6 +221,74 @@ export default function P2PPage() {
                   </TableCell>
                   <TableCell>{tx.platform || "-"}</TableCell>
                   <TableCell>{tx.counterparty || "-"}</TableCell>
+                  <TableCell>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" className="h-8 w-8 p-0">
+                          <span className="sr-only">Open menu</span>
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        {(tx.bankName || tx.paymentMethod || tx.notes || tx.transactionId) && (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <DropdownMenuItem className="cursor-pointer">
+                                <Info className="mr-2 h-4 w-4" />
+                                View Details
+                              </DropdownMenuItem>
+                            </TooltipTrigger>
+                            <TooltipContent side="left" className="max-w-sm">
+                              <div className="space-y-2 text-sm">
+                                {tx.bankName && (
+                                  <div>
+                                    <span className="font-medium">Bank:</span> {tx.bankName}
+                                  </div>
+                                )}
+                                {tx.paymentMethod && (
+                                  <div>
+                                    <span className="font-medium">Payment:</span> {tx.paymentMethod}
+                                  </div>
+                                )}
+                                {tx.transactionId && (
+                                  <div>
+                                    <span className="font-medium">Transaction ID:</span>
+                                    <div className="text-xs break-all mt-0.5 font-mono">
+                                      {tx.transactionId}
+                                    </div>
+                                  </div>
+                                )}
+                                {tx.notes && (
+                                  <div>
+                                    <span className="font-medium">Notes:</span>
+                                    <div className="text-xs mt-0.5">{tx.notes}</div>
+                                  </div>
+                                )}
+                              </div>
+                            </TooltipContent>
+                          </Tooltip>
+                        )}
+                        <DropdownMenuItem
+                          className="cursor-pointer"
+                          onClick={() => setEditingTransaction(tx)}
+                        >
+                          <Pencil className="mr-2 h-4 w-4" />
+                          Edit
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          className="cursor-pointer text-red-600 focus:text-red-600"
+                          onClick={() => {
+                            if (confirm("Are you sure you want to delete this transaction?")) {
+                              deleteTransaction.mutate({ id: tx.id });
+                            }
+                          }}
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -206,14 +296,26 @@ export default function P2PPage() {
         </CardContent>
       </Card>
 
-      <AddP2PTransactionDialog
-        open={isAddDialogOpen}
-        onOpenChange={setIsAddDialogOpen}
-        onSuccess={() => {
-          refetchTransactions();
-          refetchSummary();
-        }}
-      />
-    </div>
+        <AddP2PTransactionDialog
+          open={isAddDialogOpen}
+          onOpenChange={setIsAddDialogOpen}
+          onSuccess={() => {
+            refetchTransactions();
+            refetchSummary();
+          }}
+        />
+
+        <AddP2PTransactionDialog
+          open={!!editingTransaction}
+          onOpenChange={(open) => !open && setEditingTransaction(null)}
+          editTransaction={editingTransaction}
+          onSuccess={() => {
+            refetchTransactions();
+            refetchSummary();
+            setEditingTransaction(null);
+          }}
+        />
+      </div>
+    </TooltipProvider>
   );
 }

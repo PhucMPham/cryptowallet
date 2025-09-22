@@ -1,6 +1,7 @@
 import { protectedProcedure, publicProcedure, router } from "../lib/trpc";
 import { todoRouter } from "./todo";
 import { cryptoRouter } from "./crypto";
+import { p2pRouter } from "./p2p";
 
 export const appRouter = router({
 	healthCheck: publicProcedure.query(() => {
@@ -14,5 +15,6 @@ export const appRouter = router({
 	}),
 	todo: todoRouter,
 	crypto: cryptoRouter,
+	p2p: p2pRouter,
 });
 export type AppRouter = typeof appRouter;

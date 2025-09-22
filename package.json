@@ -18,7 +18,9 @@
     "db:generate": "turbo -F server db:generate",
     "db:migrate": "turbo -F server db:migrate"
   },
-  "dependencies": {},
+  "dependencies": {
+    "@trpc/react-query": "^11.5.1"
+  },
   "devDependencies": {
     "turbo": "^2.5.4"
   },

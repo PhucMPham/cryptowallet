@@ -1,0 +1,43 @@
+import { integer, sqliteTable, text, real } from "drizzle-orm/sqlite-core";
+
+export const cryptoAsset = sqliteTable("crypto_asset", {
+	id: integer("id").primaryKey({ autoIncrement: true }),
+	symbol: text("symbol").notNull(), // BTC, ETH, etc.
+	name: text("name").notNull(), // Bitcoin, Ethereum, etc.
+	userId: text("user_id"),
+	createdAt: integer("created_at", { mode: "timestamp" })
+		.notNull()
+		.$defaultFn(() => new Date()),
+	updatedAt: integer("updated_at", { mode: "timestamp" })
+		.notNull()
+		.$defaultFn(() => new Date()),
+});
+
+export const cryptoTransaction = sqliteTable("crypto_transaction", {
+	id: integer("id").primaryKey({ autoIncrement: true }),
+	assetId: integer("asset_id")
+		.notNull()
+		.references(() => cryptoAsset.id, { onDelete: "cascade" }),
+	type: text("type", { enum: ["buy", "sell"] }).notNull(),
+	quantity: real("quantity").notNull(), // Amount of crypto bought/sold
+	pricePerUnit: real("price_per_unit").notNull(), // Price per unit in USD
+	totalAmount: real("total_amount").notNull(), // Total USD spent/received
+	fee: real("fee").default(0), // Transaction fee in USD
+	exchange: text("exchange"), // Binance, Coinbase, etc.
+	notes: text("notes"),
+	transactionDate: integer("transaction_date", { mode: "timestamp" })
+		.notNull()
+		.$defaultFn(() => new Date()),
+	userId: text("user_id"),
+	createdAt: integer("created_at", { mode: "timestamp" })
+		.notNull()
+		.$defaultFn(() => new Date()),
+	updatedAt: integer("updated_at", { mode: "timestamp" })
+		.notNull()
+		.$defaultFn(() => new Date()),
+});
+
+export type CryptoAsset = typeof cryptoAsset.$inferSelect;
+export type NewCryptoAsset = typeof cryptoAsset.$inferInsert;
+export type CryptoTransaction = typeof cryptoTransaction.$inferSelect;
+export type NewCryptoTransaction = typeof cryptoTransaction.$inferInsert;

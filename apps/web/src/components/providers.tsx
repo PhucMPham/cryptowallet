@@ -1,10 +1,9 @@
 "use client";
 
-import { QueryClientProvider } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
-import { queryClient } from "@/utils/trpc";
 import { ThemeProvider } from "./theme-provider";
 import { Toaster } from "./ui/sonner";
+import { TRPCProvider } from "@/utils/api";
 
 export default function Providers({ children }: { children: React.ReactNode }) {
 	return (
@@ -14,10 +13,10 @@ export default function Providers({ children }: { children: React.ReactNode }) {
 			enableSystem
 			disableTransitionOnChange
 		>
-			<QueryClientProvider client={queryClient}>
+			<TRPCProvider>
 				{children}
 				<ReactQueryDevtools />
-			</QueryClientProvider>
+			</TRPCProvider>
 			<Toaster richColors />
 		</ThemeProvider>
 	);

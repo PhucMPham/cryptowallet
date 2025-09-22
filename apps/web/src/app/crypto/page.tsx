@@ -14,6 +14,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
+import { CryptoSelect } from "@/components/crypto-select";
 import {
 	Table,
 	TableBody,
@@ -121,7 +122,7 @@ export default function CryptoTracker() {
 							Add Transaction
 						</Button>
 					</DialogTrigger>
-					<DialogContent className="sm:max-w-[500px]">
+					<DialogContent className="sm:max-w-[600px]">
 						<DialogHeader>
 							<DialogTitle>Add New Transaction</DialogTitle>
 						</DialogHeader>
@@ -129,30 +130,26 @@ export default function CryptoTracker() {
 							<div className="grid grid-cols-2 gap-4">
 								<div>
 									<Label htmlFor="symbol">Symbol *</Label>
-									<Input
-										id="symbol"
-										placeholder="BTC"
+									<CryptoSelect
 										value={transactionForm.symbol}
-										onChange={(e) =>
+										onValueChange={(symbol, name) =>
 											setTransactionForm({
 												...transactionForm,
-												symbol: e.target.value.toUpperCase(),
+												symbol,
+												name,
 											})
 										}
+										placeholder="Select cryptocurrency"
 									/>
 								</div>
 								<div>
 									<Label htmlFor="name">Name</Label>
 									<Input
 										id="name"
-										placeholder="Bitcoin"
+										placeholder="Auto-populated"
 										value={transactionForm.name}
-										onChange={(e) =>
-											setTransactionForm({
-												...transactionForm,
-												name: e.target.value,
-											})
-										}
+										disabled
+										className="bg-muted"
 									/>
 								</div>
 							</div>

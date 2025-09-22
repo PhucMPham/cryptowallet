@@ -1,3 +1,5 @@
+import { coinMarketCapService } from "./coinmarketcapService";
+
 interface CryptoPrice {
 	usd: number;
 	usd_24h_change?: number;
@@ -7,10 +9,13 @@ interface PriceResponse {
 	[symbol: string]: CryptoPrice;
 }
 
+type PriceProvider = 'coingecko' | 'coinmarketcap' | 'auto';
+
 class PriceService {
 	private baseUrl = "https://api.coingecko.com/api/v3";
 	private cache: Map<string, { price: number; timestamp: number }> = new Map();
 	private cacheTimeout = 60000; // 1 minute cache
+	private provider: PriceProvider = 'auto'; // Default to auto-select based on availability
 
 	// Map common symbols to CoinGecko IDs
 	private symbolToId: Record<string, string> = {
@@ -37,20 +42,21 @@ class PriceService {
 		// Add more mappings as needed
 	};
 
-	async getPrice(symbol: string): Promise<number | null> {
+	// Set the price provider
+	setProvider(provider: PriceProvider) {
+		this.provider = provider;
+		console.log(`Price provider set to: ${provider}`);
+	}
+
+	// Get price from CoinGecko
+	private async getPriceFromCoinGecko(symbol: string): Promise<number | null> {
+		const coinId = this.symbolToId[symbol.toUpperCase()];
+		if (!coinId) {
+			console.warn(`No CoinGecko ID mapping for symbol: ${symbol}`);
+			return null;
+		}
+
 		try {
-			// Check cache first
-			const cached = this.cache.get(symbol);
-			if (cached && Date.now() - cached.timestamp < this.cacheTimeout) {
-				return cached.price;
-			}
-
-			const coinId = this.symbolToId[symbol.toUpperCase()];
-			if (!coinId) {
-				console.warn(`No CoinGecko ID mapping for symbol: ${symbol}`);
-				return null;
-			}
-
 			const response = await fetch(
 				`${this.baseUrl}/simple/price?ids=${coinId}&vs_currencies=usd&include_24hr_change=true`
 			);
@@ -60,7 +66,54 @@ class PriceService {
 			}
 
 			const data: PriceResponse = await response.json();
-			const price = data[coinId]?.usd;
+			return data[coinId]?.usd || null;
+		} catch (error) {
+			console.error(`CoinGecko error for ${symbol}:`, error);
+			return null;
+		}
+	}
+
+	// Get price from CoinMarketCap
+	private async getPriceFromCoinMarketCap(symbol: string): Promise<number | null> {
+		if (!coinMarketCapService.isConfigured()) {
+			console.warn('CoinMarketCap service not configured');
+			return null;
+		}
+
+		try {
+			return await coinMarketCapService.getPrice(symbol);
+		} catch (error) {
+			console.error(`CoinMarketCap error for ${symbol}:`, error);
+			return null;
+		}
+	}
+
+	async getPrice(symbol: string): Promise<number | null> {
+		try {
+			// Check cache first
+			const cached = this.cache.get(symbol);
+			if (cached && Date.now() - cached.timestamp < this.cacheTimeout) {
+				return cached.price;
+			}
+
+			let price: number | null = null;
+
+			// Select provider based on configuration
+			if (this.provider === 'coinmarketcap') {
+				price = await this.getPriceFromCoinMarketCap(symbol);
+			} else if (this.provider === 'coingecko') {
+				price = await this.getPriceFromCoinGecko(symbol);
+			} else {
+				// Auto mode: try CoinMarketCap first if configured, fallback to CoinGecko
+				if (coinMarketCapService.isConfigured()) {
+					price = await this.getPriceFromCoinMarketCap(symbol);
+				}
+
+				// Fallback to CoinGecko if CoinMarketCap fails or is not configured
+				if (price === null) {
+					price = await this.getPriceFromCoinGecko(symbol);
+				}
+			}
 
 			if (price) {
 				// Update cache
@@ -76,16 +129,59 @@ class PriceService {
 	}
 
 	async getPrices(symbols: string[]): Promise<Record<string, number | null>> {
-		const prices: Record<string, number | null> = {};
+		// Check if we can use bulk fetch from CoinMarketCap
+		if (this.provider === 'coinmarketcap' ||
+			(this.provider === 'auto' && coinMarketCapService.isConfigured())) {
+			try {
+				const cmcPrices = await coinMarketCapService.getPrices(symbols);
 
-		// Fetch prices in parallel
+				// Check if we got all prices
+				const missingSymbols = symbols.filter(s => cmcPrices[s] === null);
+
+				if (missingSymbols.length === 0) {
+					// Update cache for all fetched prices
+					symbols.forEach((symbol) => {
+						if (cmcPrices[symbol]) {
+							this.cache.set(symbol, {
+								price: cmcPrices[symbol]!,
+								timestamp: Date.now()
+							});
+						}
+					});
+					return cmcPrices;
+				}
+
+				// If some symbols are missing and we're in auto mode, try CoinGecko for those
+				if (this.provider === 'auto' && missingSymbols.length > 0) {
+					const geckoPromises = missingSymbols.map(async (symbol) => {
+						const price = await this.getPriceFromCoinGecko(symbol);
+						return { symbol, price };
+					});
+
+					const geckoResults = await Promise.all(geckoPromises);
+					geckoResults.forEach(({ symbol, price }) => {
+						if (price) {
+							cmcPrices[symbol] = price;
+							this.cache.set(symbol, { price, timestamp: Date.now() });
+						}
+					});
+				}
+
+				return cmcPrices;
+			} catch (error) {
+				console.error('Error fetching bulk prices from CoinMarketCap:', error);
+				// Fall through to individual fetching
+			}
+		}
+
+		// Fallback to individual fetching
+		const prices: Record<string, number | null> = {};
 		const pricePromises = symbols.map(async (symbol) => {
 			const price = await this.getPrice(symbol);
 			return { symbol, price };
 		});
 
 		const results = await Promise.all(pricePromises);
-
 		results.forEach(({ symbol, price }) => {
 			prices[symbol] = price;
 		});
@@ -110,6 +206,14 @@ class PriceService {
 				cryptoAmount: feeAmount,
 			};
 		}
+	}
+
+	// Get current provider status
+	getProviderStatus(): { provider: PriceProvider; coinMarketCapConfigured: boolean } {
+		return {
+			provider: this.provider,
+			coinMarketCapConfigured: coinMarketCapService.isConfigured(),
+		};
 	}
 }
 

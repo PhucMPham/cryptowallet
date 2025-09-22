@@ -4,6 +4,7 @@ import { cryptoAsset, cryptoTransaction } from "../db/schema/crypto";
 import { eq, and, desc, sql } from "drizzle-orm";
 import { db } from "../db";
 import { priceService } from "../services/priceService";
+import { coinMarketCapService } from "../services/coinmarketcapService";
 
 export const cryptoRouter = router({
 	// Get all assets for user
@@ -340,6 +341,214 @@ export const cryptoRouter = router({
 			netInvested: 0,
 		};
 	}),
+
+	// Test CoinMarketCap integration
+	testCoinMarketCap: publicProcedure
+		.input(
+			z.object({
+				symbol: z.string().optional().default("BTC"),
+				provider: z.enum(["coinmarketcap", "coingecko", "auto"]).optional().default("auto"),
+			})
+		)
+		.query(async ({ input }) => {
+			// Set provider if specified
+			if (input.provider !== "auto") {
+				priceService.setProvider(input.provider);
+			}
+
+			const results: any = {
+				provider: priceService.getProviderStatus(),
+				symbol: input.symbol,
+				timestamp: new Date().toISOString(),
+			};
+
+			// Test single price fetch
+			try {
+				const price = await priceService.getPrice(input.symbol);
+				results.singlePrice = {
+					success: true,
+					price,
+					source: price ? "Price fetched successfully" : "Symbol not found or API error",
+				};
+			} catch (error) {
+				results.singlePrice = {
+					success: false,
+					error: error instanceof Error ? error.message : "Unknown error",
+				};
+			}
+
+			// Test bulk price fetch
+			try {
+				const symbols = ["BTC", "ETH", "BNB"];
+				const prices = await priceService.getPrices(symbols);
+				results.bulkPrices = {
+					success: true,
+					prices,
+					symbolsFetched: symbols.filter(s => prices[s] !== null).length,
+					totalSymbols: symbols.length,
+				};
+			} catch (error) {
+				results.bulkPrices = {
+					success: false,
+					error: error instanceof Error ? error.message : "Unknown error",
+				};
+			}
+
+			// Test CoinMarketCap directly if configured
+			if (coinMarketCapService.isConfigured()) {
+				try {
+					const cmcPrice = await coinMarketCapService.getPrice(input.symbol);
+					results.directCoinMarketCap = {
+						success: true,
+						price: cmcPrice,
+						configured: true,
+					};
+
+					// Also test top cryptocurrencies
+					const topCryptos = await coinMarketCapService.getTopCryptocurrencies(5);
+					results.topCryptocurrencies = {
+						success: true,
+						count: topCryptos.length,
+						data: topCryptos.map(c => ({
+							symbol: c.symbol,
+							name: c.name,
+							price: c.quote.USD.price,
+							marketCap: c.quote.USD.market_cap,
+							change24h: c.quote.USD.percent_change_24h,
+						})),
+					};
+				} catch (error) {
+					results.directCoinMarketCap = {
+						success: false,
+						configured: true,
+						error: error instanceof Error ? error.message : "Unknown error",
+					};
+				}
+			} else {
+				results.directCoinMarketCap = {
+					success: false,
+					configured: false,
+					message: "CoinMarketCap API key not configured. Add COINMARKETCAP_API_KEY to .env file",
+				};
+			}
+
+			return results;
+		}),
+
+	// Get price provider status
+	getPriceProviderStatus: publicProcedure.query(async () => {
+		const status = priceService.getProviderStatus();
+		return {
+			...status,
+			message: status.coinMarketCapConfigured
+				? "CoinMarketCap is configured and ready to use"
+				: "Using CoinGecko as default. To use CoinMarketCap, add COINMARKETCAP_API_KEY to .env",
+		};
+	}),
+
+	// Search cryptocurrencies for dropdown (simplified version without price data)
+	searchCryptocurrencies: publicProcedure
+		.input(
+			z.object({
+				query: z.string().optional(),
+				limit: z.number().optional().default(20),
+				includePrice: z.boolean().optional().default(false), // Option to include price data
+			})
+		)
+		.query(async ({ input }) => {
+			try {
+				// If CoinMarketCap is configured, use it for comprehensive data
+				if (coinMarketCapService.isConfigured()) {
+					const allCryptos = await coinMarketCapService.getTopCryptocurrencies(500);
+
+					// Filter based on query
+					let filtered = allCryptos;
+					if (input.query && input.query.length > 0) {
+						const queryLower = input.query.toLowerCase();
+						filtered = allCryptos.filter(
+							crypto =>
+								crypto.symbol.toLowerCase().includes(queryLower) ||
+								crypto.name.toLowerCase().includes(queryLower)
+						);
+					}
+
+					// Return formatted results
+					return filtered.slice(0, input.limit).map(crypto => ({
+						symbol: crypto.symbol,
+						name: crypto.name,
+						price: input.includePrice ? crypto.quote.USD.price : null,
+						marketCap: input.includePrice ? crypto.quote.USD.market_cap : null,
+						rank: crypto.cmc_rank,
+						logo: `https://s2.coinmarketcap.com/static/img/coins/64x64/${crypto.id}.png`,
+					}));
+				}
+
+				// Fallback: return common cryptocurrencies with basic info
+				// Using CoinMarketCap IDs for logo URLs
+				const commonCryptos = [
+					{ symbol: "BTC", name: "Bitcoin", rank: 1, id: 1 },
+					{ symbol: "ETH", name: "Ethereum", rank: 2, id: 1027 },
+					{ symbol: "USDT", name: "Tether", rank: 3, id: 825 },
+					{ symbol: "BNB", name: "BNB", rank: 4, id: 1839 },
+					{ symbol: "XRP", name: "XRP", rank: 5, id: 52 },
+					{ symbol: "SOL", name: "Solana", rank: 6, id: 5426 },
+					{ symbol: "USDC", name: "USD Coin", rank: 7, id: 3408 },
+					{ symbol: "ADA", name: "Cardano", rank: 8, id: 2010 },
+					{ symbol: "DOGE", name: "Dogecoin", rank: 9, id: 74 },
+					{ symbol: "AVAX", name: "Avalanche", rank: 10, id: 5805 },
+					{ symbol: "TRX", name: "TRON", rank: 11, id: 1958 },
+					{ symbol: "DOT", name: "Polkadot", rank: 12, id: 6636 },
+					{ symbol: "LINK", name: "Chainlink", rank: 13, id: 1975 },
+					{ symbol: "MATIC", name: "Polygon", rank: 14, id: 3890 },
+					{ symbol: "TON", name: "Toncoin", rank: 15, id: 11419 },
+					{ symbol: "ICP", name: "Internet Computer", rank: 16, id: 8916 },
+					{ symbol: "SHIB", name: "Shiba Inu", rank: 17, id: 5994 },
+					{ symbol: "LTC", name: "Litecoin", rank: 18, id: 2 },
+					{ symbol: "BCH", name: "Bitcoin Cash", rank: 19, id: 1831 },
+					{ symbol: "UNI", name: "Uniswap", rank: 20, id: 7083 },
+					{ symbol: "ATOM", name: "Cosmos", rank: 21, id: 3794 },
+					{ symbol: "XLM", name: "Stellar", rank: 22, id: 512 },
+					{ symbol: "ETC", name: "Ethereum Classic", rank: 23, id: 1321 },
+					{ symbol: "FIL", name: "Filecoin", rank: 24, id: 2280 },
+					{ symbol: "APT", name: "Aptos", rank: 25, id: 21794 },
+				];
+
+				// Filter based on query
+				let filtered = commonCryptos;
+				if (input.query && input.query.length > 0) {
+					const queryLower = input.query.toLowerCase();
+					filtered = commonCryptos.filter(
+						crypto =>
+							crypto.symbol.toLowerCase().includes(queryLower) ||
+							crypto.name.toLowerCase().includes(queryLower)
+					);
+				}
+
+				// Only fetch prices if requested
+				let prices: Record<string, number | null> = {};
+				if (input.includePrice) {
+					const symbols = filtered.slice(0, input.limit).map(c => c.symbol);
+					prices = await priceService.getPrices(symbols);
+				}
+
+				return filtered.slice(0, input.limit).map(crypto => ({
+					symbol: crypto.symbol,
+					name: crypto.name,
+					price: input.includePrice ? (prices[crypto.symbol] || null) : null,
+					marketCap: null,
+					rank: crypto.rank,
+					logo: crypto.id ? `https://s2.coinmarketcap.com/static/img/coins/64x64/${crypto.id}.png` : null,
+				}));
+			} catch (error) {
+				console.error("Error searching cryptocurrencies:", error);
+				// Return basic fallback data even on error
+				return [
+					{ symbol: "BTC", name: "Bitcoin", price: null, marketCap: null, rank: 1, logo: "https://s2.coinmarketcap.com/static/img/coins/64x64/1.png" },
+					{ symbol: "ETH", name: "Ethereum", price: null, marketCap: null, rank: 2, logo: "https://s2.coinmarketcap.com/static/img/coins/64x64/1027.png" },
+					{ symbol: "USDT", name: "Tether", price: null, marketCap: null, rank: 3, logo: "https://s2.coinmarketcap.com/static/img/coins/64x64/825.png" },
+				];
+			}
+		}),
 });
 
 export type CryptoRouter = typeof cryptoRouter;

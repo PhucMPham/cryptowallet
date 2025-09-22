@@ -86,29 +86,29 @@ export default function P2PPage() {
         <div className="grid gap-4 md:grid-cols-4">
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium">Current Holdings</CardTitle>
+              <CardTitle className="text-sm font-medium">USDT Balance</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
                 {formatNumber(portfolioSummary.summary.currentHoldings)} USDT
               </div>
               <p className="text-xs text-muted-foreground mt-1">
-                Avg Rate: {formatCurrency(portfolioSummary.summary.weightedAverageRate, "VND")}
+                Total bought: {formatNumber(portfolioSummary.summary.totalBought)} USDT
               </p>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium">Current Value</CardTitle>
+              <CardTitle className="text-sm font-medium">Average Buy Price</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {formatCurrency(portfolioSummary.summary.currentValue, "VND")}
+                {formatCurrency(portfolioSummary.summary.weightedAverageRate, "VND")}
               </div>
               <div className="flex items-center gap-2 mt-1">
                 <p className="text-xs text-muted-foreground">
-                  Market: {formatCurrency(portfolioSummary.summary.currentMarketRate, "VND")}
+                  Current: {formatCurrency(portfolioSummary.summary.currentMarketRate, "VND")}
                 </p>
                 <Button
                   size="sm"
@@ -125,7 +125,21 @@ export default function P2PPage() {
 
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium">Unrealized P&L</CardTitle>
+              <CardTitle className="text-sm font-medium">Current Value (VND)</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {formatCurrency(portfolioSummary.summary.currentValue, "VND")}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Cost basis: {formatCurrency(portfolioSummary.summary.costBasis, "VND")}
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium">Profit/Loss (If Sold Now)</CardTitle>
             </CardHeader>
             <CardContent>
               <div className={`text-2xl font-bold ${portfolioSummary.summary.unrealizedPnL >= 0 ? 'text-green-600' : 'text-red-600'}`}>
@@ -133,20 +147,6 @@ export default function P2PPage() {
               </div>
               <p className="text-xs mt-1">
                 {formatPercentage(portfolioSummary.summary.unrealizedPnLPercent)}
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium">Total P&L</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className={`text-2xl font-bold ${portfolioSummary.summary.totalPnL >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                {portfolioSummary.summary.totalPnL >= 0 ? '+' : ''}{formatCurrency(portfolioSummary.summary.totalPnL, "VND")}
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                Realized: {formatCurrency(portfolioSummary.summary.realizedPnL, "VND")}
               </p>
             </CardContent>
           </Card>

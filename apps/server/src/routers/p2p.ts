@@ -12,6 +12,8 @@ const createP2PTransactionSchema = z.object({
 	fiatCurrency: z.string().default("VND"),
 	fiatAmount: z.number().positive(),
 	exchangeRate: z.number().positive(),
+	feeAmount: z.number().optional(),
+	feePercent: z.number().optional(),
 	platform: z.string().optional(),
 	counterparty: z.string().optional(),
 	paymentMethod: z.string().optional(),
@@ -82,10 +84,60 @@ export const p2pRouter = router({
 	addTransaction: publicProcedure
 		.input(createP2PTransactionSchema)
 		.mutation(async ({ input }) => {
+			// Validate that crypto amount matches the calculation
+			const calculatedCryptoAmount = input.fiatAmount / input.exchangeRate;
+			const difference = Math.abs(calculatedCryptoAmount - input.cryptoAmount);
+			const tolerance = 0.01; // Allow 0.01 USDT tolerance for rounding
+
+			if (difference > tolerance) {
+				throw new TRPCError({
+					code: "BAD_REQUEST",
+					message: `Crypto amount (${input.cryptoAmount}) doesn't match calculation (${calculatedCryptoAmount.toFixed(4)}). Difference: ${difference.toFixed(4)} USDT`,
+				});
+			}
+
+			// Get latest market rate for spread calculation
+			const latestMarketRate = await db
+				.select()
+				.from(marketRate)
+				.where(
+					and(
+						eq(marketRate.crypto, input.crypto),
+						eq(marketRate.fiatCurrency, input.fiatCurrency)
+					)
+				)
+				.orderBy(desc(marketRate.timestamp))
+				.limit(1);
+
+			let spreadPercent: number | null = null;
+			let currentMarketRate: number | null = null;
+
+			if (latestMarketRate[0]) {
+				currentMarketRate = latestMarketRate[0].rate;
+				// Calculate spread as percentage difference from market rate
+				// Positive spread means paying more than market (for buys) or receiving less (for sells)
+				if (input.type === "buy") {
+					spreadPercent = ((input.exchangeRate - currentMarketRate) / currentMarketRate) * 100;
+				} else {
+					spreadPercent = ((currentMarketRate - input.exchangeRate) / currentMarketRate) * 100;
+				}
+			}
+
+			// Calculate fee if provided as percentage
+			let feeAmount = input.feeAmount || null;
+			if (input.feePercent && !feeAmount) {
+				feeAmount = (input.fiatAmount * input.feePercent) / 100;
+			}
+
 			const result = await db
 				.insert(p2pTransaction)
 				.values({
 					...input,
+					cryptoAmount: calculatedCryptoAmount, // Use calculated amount to ensure accuracy
+					marketRate: currentMarketRate,
+					spreadPercent,
+					feeAmount,
+					feePercent: input.feePercent,
 					transactionDate: input.transactionDate,
 				})
 				.returning();
@@ -179,18 +231,31 @@ export const p2pRouter = router({
 			let totalSold = 0;
 			let totalFiatSpent = 0;
 			let totalFiatReceived = 0;
+			let totalFees = 0;
+			let totalSpread = 0;
 			let weightedAverageRate = 0;
 			let buyTransactions: typeof transactions = [];
 			let sellTransactions: typeof transactions = [];
 
 			for (const tx of transactions) {
+				// Add fees to total
+				if (tx.feeAmount) {
+					totalFees += tx.feeAmount;
+				}
+
+				// Calculate spread cost if market rate was available
+				if (tx.marketRate && tx.spreadPercent) {
+					const spreadCost = Math.abs(tx.cryptoAmount * (tx.exchangeRate - tx.marketRate));
+					totalSpread += spreadCost;
+				}
+
 				if (tx.type === "buy") {
 					totalBought += tx.cryptoAmount;
-					totalFiatSpent += tx.fiatAmount;
+					totalFiatSpent += tx.fiatAmount + (tx.feeAmount || 0); // Include fees in total spent
 					buyTransactions.push(tx);
 				} else {
 					totalSold += tx.cryptoAmount;
-					totalFiatReceived += tx.fiatAmount;
+					totalFiatReceived += tx.fiatAmount - (tx.feeAmount || 0); // Deduct fees from received
 					sellTransactions.push(tx);
 				}
 			}
@@ -225,6 +290,8 @@ export const p2pRouter = router({
 					currentHoldings,
 					totalFiatSpent,
 					totalFiatReceived,
+					totalFees,
+					totalSpread,
 					weightedAverageRate,
 					currentMarketRate,
 					currentValue,
@@ -233,6 +300,7 @@ export const p2pRouter = router({
 					unrealizedPnLPercent,
 					realizedPnL,
 					totalPnL: unrealizedPnL + realizedPnL,
+					netInvested: totalFiatSpent - totalFiatReceived,
 				},
 				transactions,
 				latestMarketRate: latestRate[0] || null,

@@ -8,6 +8,10 @@ export const p2pTransaction = sqliteTable("p2p_transaction", {
 	fiatCurrency: text("fiat_currency").notNull().default("VND"), // VND, USD, etc.
 	fiatAmount: real("fiat_amount").notNull(), // Amount of VND spent/received
 	exchangeRate: real("exchange_rate").notNull(), // VND per USDT at time of transaction
+	marketRate: real("market_rate"), // Market rate at time of transaction for spread calculation
+	spreadPercent: real("spread_percent"), // Percentage difference from market rate
+	feeAmount: real("fee_amount"), // Platform fee in fiat currency
+	feePercent: real("fee_percent"), // Fee as percentage of transaction
 	platform: text("platform"), // Binance P2P, OTC, Bank Transfer, etc.
 	counterparty: text("counterparty"), // Seller/buyer name or ID
 	paymentMethod: text("payment_method"), // Bank transfer, cash, etc.

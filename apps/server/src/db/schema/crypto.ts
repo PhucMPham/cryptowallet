@@ -22,7 +22,9 @@ export const cryptoTransaction = sqliteTable("crypto_transaction", {
 	quantity: real("quantity").notNull(), // Amount of crypto bought/sold
 	pricePerUnit: real("price_per_unit").notNull(), // Price per unit in USD
 	totalAmount: real("total_amount").notNull(), // Total USD spent/received
-	fee: real("fee").default(0), // Transaction fee in USD
+	fee: real("fee").default(0), // Transaction fee in USD (always stored in USD for consistency)
+	feeCurrency: text("fee_currency", { enum: ["USD", "CRYPTO"] }).default("USD"), // Currency type for fee
+	feeInCrypto: real("fee_in_crypto"), // Original fee amount if paid in crypto
 	exchange: text("exchange"), // Binance, Coinbase, etc.
 	notes: text("notes"),
 	transactionDate: integer("transaction_date", { mode: "timestamp" })

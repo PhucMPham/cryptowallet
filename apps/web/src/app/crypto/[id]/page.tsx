@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { api } from "@/utils/api";
+import { getDefaultTransactionDate, formatDateForInput } from "@/utils/date";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -86,10 +87,19 @@ export default function AssetDetails() {
 		quantity: "",
 		pricePerUnit: "",
 		fee: "",
+		feeCurrency: "USD" as "USD" | "CRYPTO",
 		exchange: "",
 		notes: "",
-		transactionDate: new Date().toISOString().split("T")[0],
+		transactionDate: "",
 	});
+
+	// Initialize date on client side to avoid hydration mismatch
+	useEffect(() => {
+		setTransactionForm(prev => ({
+			...prev,
+			transactionDate: getDefaultTransactionDate()
+		}));
+	}, []);
 
 	const handleAddTransaction = async () => {
 		if (!transactionForm.quantity || !transactionForm.pricePerUnit) {
@@ -105,6 +115,7 @@ export default function AssetDetails() {
 			quantity: parseFloat(transactionForm.quantity),
 			pricePerUnit: parseFloat(transactionForm.pricePerUnit),
 			fee: transactionForm.fee ? parseFloat(transactionForm.fee) : undefined,
+			feeCurrency: transactionForm.feeCurrency,
 			exchange: transactionForm.exchange || undefined,
 			notes: transactionForm.notes || undefined,
 			transactionDate: transactionForm.transactionDate,
@@ -234,14 +245,41 @@ export default function AssetDetails() {
 									/>
 								</div>
 							</div>
+							<div>
+								<Label htmlFor="feeCurrency">Fee Currency</Label>
+								<Select
+									value={transactionForm.feeCurrency}
+									onValueChange={(value) =>
+										setTransactionForm({
+											...transactionForm,
+											feeCurrency: value as "USD" | "CRYPTO",
+										})
+									}
+								>
+									<SelectTrigger>
+										<SelectValue />
+									</SelectTrigger>
+									<SelectContent>
+										<SelectItem value="USD">USD</SelectItem>
+										<SelectItem value="CRYPTO">{data.asset.symbol}</SelectItem>
+									</SelectContent>
+								</Select>
+							</div>
 							<div className="grid grid-cols-2 gap-4">
 								<div>
-									<Label htmlFor="fee">Fee ($)</Label>
+									<Label htmlFor="fee">
+										Fee {transactionForm.feeCurrency === "USD" ? "($)" : `(${data.asset.symbol})`}
+										{transactionForm.fee && transactionForm.feeCurrency === "CRYPTO" && transactionForm.pricePerUnit && (
+											<span className="text-xs text-muted-foreground ml-1">
+												≈ ${(parseFloat(transactionForm.fee) * parseFloat(transactionForm.pricePerUnit)).toFixed(2)}
+											</span>
+										)}
+									</Label>
 									<Input
 										id="fee"
 										type="number"
 										step="any"
-										placeholder="10"
+										placeholder={transactionForm.feeCurrency === "USD" ? "10" : "0.0001"}
 										value={transactionForm.fee}
 										onChange={(e) =>
 											setTransactionForm({
@@ -465,7 +503,18 @@ export default function AssetDetails() {
 										{formatCurrency(tx.totalAmount)}
 									</TableCell>
 									<TableCell className="text-right">
-										{tx.fee ? formatCurrency(tx.fee) : "-"}
+										{tx.fee ? (
+											<div>
+												{formatCurrency(tx.fee)}
+												{tx.feeCurrency === "CRYPTO" && tx.feeInCrypto && (
+													<div className="text-xs text-muted-foreground">
+														({formatNumber(tx.feeInCrypto)} {data.asset.symbol})
+													</div>
+												)}
+											</div>
+										) : (
+											"-"
+										)}
 									</TableCell>
 									<TableCell className="max-w-[200px] truncate">
 										{tx.notes || "-"}
@@ -480,10 +529,11 @@ export default function AssetDetails() {
 														...tx,
 														quantity: tx.quantity.toString(),
 														pricePerUnit: tx.pricePerUnit.toString(),
-														fee: tx.fee?.toString() || "",
-														transactionDate: new Date(tx.transactionDate)
-															.toISOString()
-															.split("T")[0],
+														fee: tx.feeCurrency === "CRYPTO" && tx.feeInCrypto
+															? tx.feeInCrypto.toString()
+															: tx.fee?.toString() || "",
+														feeCurrency: tx.feeCurrency || "USD",
+														transactionDate: formatDateForInput(tx.transactionDate),
 													});
 												}}
 											>
@@ -569,9 +619,36 @@ export default function AssetDetails() {
 									/>
 								</div>
 							</div>
+							<div>
+								<Label htmlFor="edit-feeCurrency">Fee Currency</Label>
+								<Select
+									value={editingTransaction.feeCurrency}
+									onValueChange={(value) =>
+										setEditingTransaction({
+											...editingTransaction,
+											feeCurrency: value,
+										})
+									}
+								>
+									<SelectTrigger>
+										<SelectValue />
+									</SelectTrigger>
+									<SelectContent>
+										<SelectItem value="USD">USD</SelectItem>
+										<SelectItem value="CRYPTO">{data.asset.symbol}</SelectItem>
+									</SelectContent>
+								</Select>
+							</div>
 							<div className="grid grid-cols-2 gap-4">
 								<div>
-									<Label htmlFor="edit-fee">Fee ($)</Label>
+									<Label htmlFor="edit-fee">
+										Fee {editingTransaction.feeCurrency === "USD" ? "($)" : `(${data.asset.symbol})`}
+										{editingTransaction.fee && editingTransaction.feeCurrency === "CRYPTO" && editingTransaction.pricePerUnit && (
+											<span className="text-xs text-muted-foreground ml-1">
+												≈ ${(parseFloat(editingTransaction.fee) * parseFloat(editingTransaction.pricePerUnit)).toFixed(2)}
+											</span>
+										)}
+									</Label>
 									<Input
 										id="edit-fee"
 										type="number"

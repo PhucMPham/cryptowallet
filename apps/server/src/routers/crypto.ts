@@ -3,6 +3,7 @@ import { router, publicProcedure, protectedProcedure } from "../lib/trpc";
 import { cryptoAsset, cryptoTransaction } from "../db/schema/crypto";
 import { eq, and, desc, sql } from "drizzle-orm";
 import { db } from "../db";
+import { priceService } from "../services/priceService";
 
 export const cryptoRouter = router({
 	// Get all assets for user
@@ -144,6 +145,7 @@ export const cryptoRouter = router({
 				quantity: z.number().positive(),
 				pricePerUnit: z.number().positive(),
 				fee: z.number().min(0).optional(),
+				feeCurrency: z.enum(["USD", "CRYPTO"]).optional().default("USD"),
 				exchange: z.string().optional(),
 				notes: z.string().optional(),
 				transactionDate: z.date().or(z.string()),
@@ -180,6 +182,16 @@ export const cryptoRouter = router({
 				? new Date(input.transactionDate)
 				: input.transactionDate;
 
+			// Handle fee currency conversion
+			let feeInUSD = input.fee || 0;
+			let feeInCrypto: number | undefined = undefined;
+
+			if (input.fee && input.feeCurrency === "CRYPTO") {
+				// Fee is provided in crypto, convert to USD
+				feeInCrypto = input.fee;
+				feeInUSD = input.fee * input.pricePerUnit; // Convert crypto fee to USD using transaction price
+			}
+
 			const [transaction] = await db
 				.insert(cryptoTransaction)
 				.values({
@@ -188,7 +200,9 @@ export const cryptoRouter = router({
 					quantity: input.quantity,
 					pricePerUnit: input.pricePerUnit,
 					totalAmount,
-					fee: input.fee || 0,
+					fee: feeInUSD,
+					feeCurrency: input.feeCurrency || "USD",
+					feeInCrypto,
 					exchange: input.exchange,
 					notes: input.notes,
 					transactionDate,
@@ -208,6 +222,7 @@ export const cryptoRouter = router({
 				quantity: z.number().positive().optional(),
 				pricePerUnit: z.number().positive().optional(),
 				fee: z.number().min(0).optional(),
+				feeCurrency: z.enum(["USD", "CRYPTO"]).optional(),
 				exchange: z.string().optional(),
 				notes: z.string().optional(),
 				transactionDate: z.date().or(z.string()).optional(),
@@ -216,21 +231,37 @@ export const cryptoRouter = router({
 		.mutation(async ({ input }) => {
 			const { id, ...updateData } = input;
 
+			// Fetch existing transaction
+			const [existing] = await db
+				.select()
+				.from(cryptoTransaction)
+				.where(eq(cryptoTransaction.id, id))
+				.limit(1);
+
+			if (!existing) {
+				throw new Error("Transaction not found");
+			}
+
 			// Calculate new totalAmount if quantity or price changed
 			if (updateData.quantity !== undefined || updateData.pricePerUnit !== undefined) {
-				const [existing] = await db
-					.select()
-					.from(cryptoTransaction)
-					.where(eq(cryptoTransaction.id, id))
-					.limit(1);
-
-				if (!existing) {
-					throw new Error("Transaction not found");
-				}
-
 				const quantity = updateData.quantity ?? existing.quantity;
 				const pricePerUnit = updateData.pricePerUnit ?? existing.pricePerUnit;
 				(updateData as any).totalAmount = quantity * pricePerUnit;
+			}
+
+			// Handle fee currency conversion
+			if (updateData.fee !== undefined || updateData.feeCurrency !== undefined) {
+				const feeCurrency = updateData.feeCurrency ?? existing.feeCurrency ?? "USD";
+				const pricePerUnit = updateData.pricePerUnit ?? existing.pricePerUnit;
+
+				if (feeCurrency === "CRYPTO" && updateData.fee !== undefined) {
+					// Fee is in crypto, convert to USD
+					(updateData as any).feeInCrypto = updateData.fee;
+					(updateData as any).fee = updateData.fee * pricePerUnit;
+				} else if (feeCurrency === "USD") {
+					// Fee is already in USD
+					(updateData as any).feeInCrypto = null;
+				}
 			}
 
 			if (updateData.transactionDate && typeof updateData.transactionDate === "string") {
@@ -262,6 +293,14 @@ export const cryptoRouter = router({
 		.mutation(async ({ input }) => {
 			await db.delete(cryptoAsset).where(eq(cryptoAsset.id, input.id));
 			return { success: true };
+		}),
+
+	// Get current price for a crypto symbol
+	getCurrentPrice: publicProcedure
+		.input(z.object({ symbol: z.string() }))
+		.query(async ({ input }) => {
+			const price = await priceService.getPrice(input.symbol);
+			return { symbol: input.symbol, price };
 		}),
 
 	// Get portfolio summary

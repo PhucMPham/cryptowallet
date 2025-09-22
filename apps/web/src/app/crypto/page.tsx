@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { api } from "@/utils/api";
+import { getDefaultTransactionDate } from "@/utils/date";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -58,10 +59,19 @@ export default function CryptoTracker() {
 		quantity: "",
 		pricePerUnit: "",
 		fee: "",
+		feeCurrency: "USD" as "USD" | "CRYPTO",
 		exchange: "",
 		notes: "",
-		transactionDate: new Date().toISOString().split("T")[0],
+		transactionDate: "",
 	});
+
+	// Initialize date on client side to avoid hydration mismatch
+	useEffect(() => {
+		setTransactionForm(prev => ({
+			...prev,
+			transactionDate: getDefaultTransactionDate()
+		}));
+	}, []);
 
 	const handleAddTransaction = async () => {
 		if (!transactionForm.symbol || !transactionForm.quantity || !transactionForm.pricePerUnit) {
@@ -76,6 +86,7 @@ export default function CryptoTracker() {
 			quantity: parseFloat(transactionForm.quantity),
 			pricePerUnit: parseFloat(transactionForm.pricePerUnit),
 			fee: transactionForm.fee ? parseFloat(transactionForm.fee) : undefined,
+			feeCurrency: transactionForm.feeCurrency,
 			exchange: transactionForm.exchange || undefined,
 			notes: transactionForm.notes || undefined,
 			transactionDate: transactionForm.transactionDate,
@@ -199,14 +210,43 @@ export default function CryptoTracker() {
 									/>
 								</div>
 							</div>
+							<div>
+								<Label htmlFor="feeCurrency">Fee Currency</Label>
+								<Select
+									value={transactionForm.feeCurrency}
+									onValueChange={(value) =>
+										setTransactionForm({
+											...transactionForm,
+											feeCurrency: value as "USD" | "CRYPTO",
+										})
+									}
+								>
+									<SelectTrigger>
+										<SelectValue />
+									</SelectTrigger>
+									<SelectContent>
+										<SelectItem value="USD">USD</SelectItem>
+										<SelectItem value="CRYPTO">
+											{transactionForm.symbol || "Crypto"}
+										</SelectItem>
+									</SelectContent>
+								</Select>
+							</div>
 							<div className="grid grid-cols-2 gap-4">
 								<div>
-									<Label htmlFor="fee">Fee ($)</Label>
+									<Label htmlFor="fee">
+										Fee {transactionForm.feeCurrency === "USD" ? "($)" : `(${transactionForm.symbol || "Crypto"})`}
+										{transactionForm.fee && transactionForm.feeCurrency === "CRYPTO" && transactionForm.pricePerUnit && (
+											<span className="text-xs text-muted-foreground ml-1">
+												≈ ${(parseFloat(transactionForm.fee) * parseFloat(transactionForm.pricePerUnit)).toFixed(2)}
+											</span>
+										)}
+									</Label>
 									<Input
 										id="fee"
 										type="number"
 										step="any"
-										placeholder="10"
+										placeholder={transactionForm.feeCurrency === "USD" ? "10" : "0.0001"}
 										value={transactionForm.fee}
 										onChange={(e) =>
 											setTransactionForm({

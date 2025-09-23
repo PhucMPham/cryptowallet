@@ -691,6 +691,168 @@ export const cryptoRouter = router({
 		};
 	}),
 
+	// Optimized endpoint for dashboard - fetches portfolio and assets in parallel
+	getDashboardData: publicProcedure.query(async ({ ctx }) => {
+		// Execute queries in parallel for better performance
+		const [assetsData, portfolioSummary, vndConversion] = await Promise.all([
+			// Get assets with aggregated data
+			db
+				.select({
+					asset: cryptoAsset,
+					totalQuantity: sql<number>`
+						COALESCE(SUM(
+							CASE
+								WHEN ${cryptoTransaction.type} = 'buy' THEN ${cryptoTransaction.quantity}
+								WHEN ${cryptoTransaction.type} = 'sell' THEN -${cryptoTransaction.quantity}
+								ELSE 0
+							END
+						), 0)`.as("total_quantity"),
+					totalInvested: sql<number>`
+						COALESCE(SUM(
+							CASE
+								WHEN ${cryptoTransaction.type} = 'buy' THEN ${cryptoTransaction.totalAmount} + COALESCE(${cryptoTransaction.fee}, 0)
+								ELSE 0
+							END
+						), 0)`.as("total_invested"),
+					totalSold: sql<number>`
+						COALESCE(SUM(
+							CASE
+								WHEN ${cryptoTransaction.type} = 'sell' THEN ${cryptoTransaction.totalAmount} - COALESCE(${cryptoTransaction.fee}, 0)
+								ELSE 0
+							END
+						), 0)`.as("total_sold"),
+					avgBuyPrice: sql<number>`
+						CASE
+							WHEN SUM(CASE WHEN ${cryptoTransaction.type} = 'buy' THEN ${cryptoTransaction.quantity} ELSE 0 END) > 0
+							THEN SUM(CASE WHEN ${cryptoTransaction.type} = 'buy' THEN ${cryptoTransaction.totalAmount} ELSE 0 END) /
+								 SUM(CASE WHEN ${cryptoTransaction.type} = 'buy' THEN ${cryptoTransaction.quantity} ELSE 0 END)
+							ELSE 0
+						END`.as("avg_buy_price"),
+					transactionCount: sql<number>`COUNT(${cryptoTransaction.id})`.as("transaction_count"),
+				})
+				.from(cryptoAsset)
+				.leftJoin(cryptoTransaction, eq(cryptoAsset.id, cryptoTransaction.assetId))
+				.groupBy(cryptoAsset.id)
+				.orderBy(desc(cryptoAsset.createdAt)),
+
+			// Get portfolio summary
+			db
+				.select({
+					totalInvested: sql<number>`
+						COALESCE(SUM(
+							CASE
+								WHEN ${cryptoTransaction.type} = 'buy'
+								THEN ${cryptoTransaction.totalAmount} + COALESCE(${cryptoTransaction.fee}, 0)
+								ELSE 0
+							END
+						), 0)`,
+					totalSold: sql<number>`
+						COALESCE(SUM(
+							CASE
+								WHEN ${cryptoTransaction.type} = 'sell'
+								THEN ${cryptoTransaction.totalAmount} - COALESCE(${cryptoTransaction.fee}, 0)
+								ELSE 0
+							END
+						), 0)`,
+					totalFees: sql<number>`
+						COALESCE(SUM(${cryptoTransaction.fee}), 0)`,
+					transactionCount: sql<number>`COUNT(*)`,
+					assetCount: sql<number>`COUNT(DISTINCT ${cryptoTransaction.assetId})`,
+				})
+				.from(cryptoTransaction)
+				.limit(1),
+
+			// Get VND conversion rate
+			CurrencyService.getUsdToVndRate(),
+		]);
+
+		// Get unique symbols for price fetching
+		const symbols = assetsData.map(a => a.asset.symbol);
+
+		// Fetch current prices
+		let prices: Record<string, number | null> = {};
+		if (symbols.length > 0) {
+			try {
+				prices = await priceService.getPrices(symbols);
+			} catch (error) {
+				console.error("Error fetching prices:", error);
+			}
+		}
+
+		// CoinMarketCap IDs for logos
+		const cryptoIdMap: Record<string, number> = {
+			BTC: 1, ETH: 1027, USDT: 825, BNB: 1839, XRP: 52, SOL: 5426,
+			USDC: 3408, ADA: 2010, DOGE: 74, AVAX: 5805, TRX: 1958,
+			DOT: 6636, LINK: 1975, MATIC: 3890, POLYGON: 3890, POL: 3890,
+			TON: 11419, ICP: 8916, SHIB: 5994, LTC: 2, BCH: 1831,
+			UNI: 7083, ATOM: 3794, XLM: 512, ETC: 1321, FIL: 2280,
+			APT: 21794, ARB: 11841, OP: 11840, VET: 3077, HBAR: 4642,
+			NEAR: 6535, GRT: 6719, ALGO: 4030, FTM: 3513, SAND: 6210,
+			MANA: 1966, AXS: 6783, AAVE: 7278, CRV: 6538, SUSHI: 6758,
+			CAKE: 7186, XTZ: 2011,
+		};
+
+		// Process assets with prices and VND values
+		const assetsWithPrices = assetsData.map(item => {
+			const currentPrice = prices[item.asset.symbol] || null;
+			const currentValue = currentPrice && item.totalQuantity > 0
+				? currentPrice * item.totalQuantity
+				: 0;
+			const netInvested = item.totalInvested - item.totalSold;
+			const unrealizedPL = currentValue > 0 ? currentValue - netInvested : 0;
+			const unrealizedPLPercent = netInvested > 0
+				? (unrealizedPL / netInvested) * 100
+				: 0;
+
+			const cryptoId = cryptoIdMap[item.asset.symbol.toUpperCase()];
+			const logoUrl = cryptoId
+				? `https://s2.coinmarketcap.com/static/img/coins/64x64/${cryptoId}.png`
+				: null;
+
+			return {
+				...item,
+				currentPrice,
+				currentValue,
+				unrealizedPL,
+				unrealizedPLPercent,
+				logoUrl,
+				vnd: {
+					currentPrice: currentPrice ? currentPrice * vndConversion.usdToVnd : null,
+					currentValue: currentValue * vndConversion.usdToVnd,
+					avgBuyPrice: item.avgBuyPrice * vndConversion.usdToVnd,
+					unrealizedPL: unrealizedPL * vndConversion.usdToVnd,
+					totalInvested: item.totalInvested * vndConversion.usdToVnd,
+					totalSold: item.totalSold * vndConversion.usdToVnd,
+				}
+			};
+		});
+
+		// Process portfolio summary
+		const portfolio = portfolioSummary[0] || {
+			totalInvested: 0,
+			totalSold: 0,
+			totalFees: 0,
+			transactionCount: 0,
+			assetCount: 0,
+		};
+
+		return {
+			assets: assetsWithPrices,
+			portfolio: {
+				...portfolio,
+				vnd: {
+					totalInvested: portfolio.totalInvested * vndConversion.usdToVnd,
+					totalSold: portfolio.totalSold * vndConversion.usdToVnd,
+					totalFees: portfolio.totalFees * vndConversion.usdToVnd,
+					netInvested: (portfolio.totalInvested - portfolio.totalSold) * vndConversion.usdToVnd,
+					exchangeRate: vndConversion.usdToVnd,
+					source: vndConversion.source,
+				}
+			},
+			vndRate: vndConversion,
+		};
+	}),
+
 	// Search cryptocurrencies for dropdown (simplified version without price data)
 	searchCryptocurrencies: publicProcedure
 		.input(

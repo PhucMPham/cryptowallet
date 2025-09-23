@@ -1,11 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, lazy, Suspense } from "react";
 import { api } from "@/utils/api";
 import { getDefaultTransactionDate } from "@/utils/date";
-import { formatCurrency, formatVnd, formatNumber, formatPercent } from "@/utils/formatters";
+import { formatVnd } from "@/utils/formatters";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -17,39 +16,47 @@ import {
 } from "@/components/ui/select";
 import { CryptoSelect } from "@/components/crypto-select";
 import {
-	Table,
-	TableBody,
-	TableCell,
-	TableHead,
-	TableHeader,
-	TableRow,
-} from "@/components/ui/table";
-import {
 	Dialog,
 	DialogContent,
 	DialogHeader,
 	DialogTitle,
 	DialogTrigger,
 } from "@/components/ui/dialog";
-import { PlusCircle, TrendingUp, TrendingDown, DollarSign, Wallet, ArrowUp, ArrowDown } from "lucide-react";
+import { PlusCircle } from "lucide-react";
 import { toast } from "sonner";
+import { PortfolioSummary } from "@/components/portfolio-summary";
+import { CryptoAssetsTable } from "@/components/crypto-assets-table";
+import { formatCurrency } from "@/utils/formatters";
+
+// Loading skeleton
+const LoadingSkeleton = () => (
+	<div className="space-y-6">
+		<div className="h-8 w-48 bg-muted animate-pulse rounded" />
+		<div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+			{[...Array(4)].map((_, i) => (
+				<div key={i} className="h-32 bg-muted animate-pulse rounded" />
+			))}
+		</div>
+		<div className="h-96 bg-muted animate-pulse rounded" />
+	</div>
+);
 
 export default function CryptoTracker() {
 	const [isAddingTransaction, setIsAddingTransaction] = useState(false);
-	const [selectedAssetId, setSelectedAssetId] = useState<number | null>(null);
 
-	// Fetch data
-	const { data: assets, refetch: refetchAssets } = api.crypto.getAssetsWithPrices.useQuery(undefined, {
-		refetchInterval: 30000, // Refresh prices every 30 seconds
+	// Use the optimized combined endpoint
+	const { data: dashboardData, refetch: refetchDashboard, isLoading } = api.crypto.getDashboardData.useQuery(undefined, {
+		refetchInterval: 60000, // Refresh every minute instead of 30 seconds
+		staleTime: 30000, // Consider data stale after 30 seconds
+		gcTime: 5 * 60 * 1000, // Keep in cache for 5 minutes
 	});
-	const { data: portfolio } = api.crypto.getPortfolioSummary.useQuery();
 
 	// Mutations
 	const addTransactionMutation = api.crypto.addTransaction.useMutation({
 		onSuccess: () => {
 			toast.success("Transaction added successfully!");
 			setIsAddingTransaction(false);
-			refetchAssets();
+			refetchDashboard();
 		},
 		onError: (error) => {
 			toast.error("Failed to add transaction: " + error.message);
@@ -97,7 +104,18 @@ export default function CryptoTracker() {
 		});
 	};
 
-	// Formatters are now imported from utils/formatters.ts
+	const handleViewDetails = (assetId: number) => {
+		window.location.href = `/crypto/${assetId}`;
+	};
+
+	// Show loading skeleton while data is being fetched
+	if (isLoading) {
+		return (
+			<div className="container mx-auto p-6">
+				<LoadingSkeleton />
+			</div>
+		);
+	}
 
 	return (
 		<div className="container mx-auto p-6 space-y-6">
@@ -105,10 +123,10 @@ export default function CryptoTracker() {
 			<div className="flex justify-between items-center">
 				<div>
 					<h1 className="text-3xl font-bold">Crypto Portfolio Tracker</h1>
-					{assets && assets[0]?.vnd && (
+					{dashboardData?.vndRate && (
 						<p className="text-sm text-muted-foreground mt-1">
-							Exchange Rate: 1 USD = {formatVnd(assets[0].vnd.exchangeRate)}
-							{assets[0].vnd.source === "P2P Market" && (
+							Exchange Rate: 1 USD = {formatVnd(dashboardData.vndRate.usdToVnd)}
+							{dashboardData.vndRate.source === "P2P Market" && (
 								<span className="ml-1 text-xs bg-primary/10 text-primary px-2 py-0.5 rounded">
 									P2P Rate
 								</span>
@@ -304,8 +322,10 @@ export default function CryptoTracker() {
 										{formatCurrency(
 											parseFloat(transactionForm.quantity) *
 												parseFloat(transactionForm.pricePerUnit) +
-												(transactionForm.fee
+												(transactionForm.fee && transactionForm.feeCurrency === "USD"
 													? parseFloat(transactionForm.fee)
+													: transactionForm.fee && transactionForm.feeCurrency === "CRYPTO"
+													? parseFloat(transactionForm.fee) * parseFloat(transactionForm.pricePerUnit)
 													: 0)
 										)}
 									</p>
@@ -330,223 +350,21 @@ export default function CryptoTracker() {
 				</Dialog>
 			</div>
 
-			{/* Portfolio Summary */}
-			<div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-				<Card>
-					<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-						<CardTitle className="text-sm font-medium">Total Invested</CardTitle>
-						<DollarSign className="h-4 w-4 text-muted-foreground" />
-					</CardHeader>
-					<CardContent>
-						<div className="text-2xl font-bold text-primary">
-							{formatVnd(portfolio?.vnd?.totalInvested || 0)}
-						</div>
-						<div className="text-sm text-muted-foreground">
-							{formatCurrency(portfolio?.totalInvested || 0)}
-						</div>
-					</CardContent>
-				</Card>
-				<Card>
-					<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-						<CardTitle className="text-sm font-medium">Total Sold</CardTitle>
-						<TrendingUp className="h-4 w-4 text-muted-foreground" />
-					</CardHeader>
-					<CardContent>
-						<div className="text-2xl font-bold text-primary">
-							{formatVnd(portfolio?.vnd?.totalSold || 0)}
-						</div>
-						<div className="text-sm text-muted-foreground">
-							{formatCurrency(portfolio?.totalSold || 0)}
-						</div>
-					</CardContent>
-				</Card>
-				<Card>
-					<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-						<CardTitle className="text-sm font-medium">Net Invested</CardTitle>
-						<Wallet className="h-4 w-4 text-muted-foreground" />
-					</CardHeader>
-					<CardContent>
-						<div className="text-2xl font-bold text-primary">
-							{formatVnd(portfolio?.vnd?.netInvested || 0)}
-						</div>
-						<div className="text-sm text-muted-foreground">
-							{formatCurrency(
-								(portfolio?.totalInvested || 0) - (portfolio?.totalSold || 0)
-							)}
-						</div>
-					</CardContent>
-				</Card>
-				<Card>
-					<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-						<CardTitle className="text-sm font-medium">Total Assets</CardTitle>
-						<TrendingDown className="h-4 w-4 text-muted-foreground" />
-					</CardHeader>
-					<CardContent>
-						<div className="text-2xl font-bold">{portfolio?.assetCount || 0}</div>
-					</CardContent>
-				</Card>
-			</div>
+			{/* Portfolio Summary with Suspense */}
+			<Suspense fallback={<LoadingSkeleton />}>
+				<PortfolioSummary
+					portfolio={dashboardData?.portfolio}
+					isLoading={isLoading}
+				/>
+			</Suspense>
 
-			{/* Assets Table */}
-			<Card>
-				<CardHeader>
-					<CardTitle>Your Crypto Assets</CardTitle>
-				</CardHeader>
-				<CardContent>
-					<Table>
-						<TableHeader>
-							<TableRow>
-								<TableHead>Symbol</TableHead>
-								<TableHead>Name / Current Price</TableHead>
-								<TableHead className="text-right">Holdings</TableHead>
-								<TableHead className="text-right">Avg Buy Price</TableHead>
-								<TableHead className="text-right">Current Value</TableHead>
-								<TableHead className="text-right">Profit/Loss</TableHead>
-								<TableHead className="text-right">P&L %</TableHead>
-								<TableHead></TableHead>
-							</TableRow>
-						</TableHeader>
-						<TableBody>
-							{assets && assets.length > 0 ? (
-								assets.map((item) => {
-									const isProfitable = item.unrealizedPL > 0;
-									const hasHoldings = item.totalQuantity > 0;
-									return (
-										<TableRow key={item.asset.id}>
-											<TableCell className="font-medium">
-												<div className="flex items-center gap-2">
-													{item.logoUrl ? (
-														<img
-															src={item.logoUrl}
-															alt={item.asset.symbol}
-															className="w-6 h-6 rounded-full"
-															onError={(e) => {
-																e.currentTarget.style.display = 'none';
-															}}
-														/>
-													) : (
-														<div className="w-6 h-6 rounded-full bg-muted flex items-center justify-center text-xs font-bold">
-															{item.asset.symbol.slice(0, 2)}
-														</div>
-													)}
-													<span>{item.asset.symbol}</span>
-												</div>
-											</TableCell>
-											<TableCell>
-												<div className="space-y-1">
-													<div className="font-medium">{item.asset.name}</div>
-													{item.currentPrice ? (
-														<div className="flex items-center gap-2">
-															<span className="text-sm text-muted-foreground">
-																{formatCurrency(item.currentPrice)}
-															</span>
-															{item.currentPrice !== item.avgBuyPrice && item.totalQuantity > 0 && (
-																<span className={`text-xs px-1.5 py-0.5 rounded-md font-medium ${
-																	item.currentPrice > item.avgBuyPrice
-																		? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
-																		: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
-																}`}>
-																	{item.currentPrice > item.avgBuyPrice ? "↑" : "↓"}
-																	{formatPercent(Math.abs(((item.currentPrice - item.avgBuyPrice) / item.avgBuyPrice) * 100), 1)}
-																</span>
-															)}
-														</div>
-													) : (
-														<span className="text-sm text-muted-foreground">No price data</span>
-													)}
-												</div>
-											</TableCell>
-											<TableCell className="text-right">
-												{formatNumber(item.totalQuantity)}
-											</TableCell>
-											<TableCell className="text-right">
-												<div className="font-medium">
-													{formatVnd(item.vnd?.avgBuyPrice || 0)}
-												</div>
-												<div className="text-xs text-muted-foreground">
-													{formatCurrency(item.avgBuyPrice)}
-												</div>
-											</TableCell>
-											<TableCell className="text-right">
-												{hasHoldings && item.currentValue > 0 ? (
-													<div>
-														<div className="font-semibold">
-															{formatVnd(item.vnd?.currentValue || 0)}
-														</div>
-														<div className="text-xs text-muted-foreground">
-															{formatCurrency(item.currentValue)}
-														</div>
-													</div>
-												) : (
-													<span className="text-muted-foreground">-</span>
-												)}
-											</TableCell>
-											<TableCell className="text-right">
-												{hasHoldings && item.currentPrice ? (
-													<div
-														className={`${
-															isProfitable ? "text-green-600" : "text-red-600"
-														}`}
-													>
-														<div className="flex items-center justify-end gap-1">
-															{isProfitable ? (
-																<ArrowUp className="h-3 w-3" />
-															) : (
-																<ArrowDown className="h-3 w-3" />
-															)}
-															<div>
-																<div className="font-medium">
-																	{formatVnd(Math.abs(item.vnd?.unrealizedPL || 0))}
-																</div>
-																<div className="text-xs">
-																	{formatCurrency(Math.abs(item.unrealizedPL))}
-																</div>
-															</div>
-														</div>
-													</div>
-												) : (
-													<span className="text-muted-foreground">-</span>
-												)}
-											</TableCell>
-											<TableCell className="text-right">
-												{hasHoldings && item.currentPrice ? (
-													<span
-														className={`font-medium ${
-															isProfitable ? "text-green-600" : "text-red-600"
-														}`}
-													>
-														{item.unrealizedPLPercent >= 0 ? "+" : ""}
-														{formatPercent(item.unrealizedPLPercent, 2)}
-													</span>
-												) : (
-													<span className="text-muted-foreground">-</span>
-												)}
-											</TableCell>
-											<TableCell>
-												<Button
-													variant="ghost"
-													size="sm"
-													onClick={() =>
-														(window.location.href = `/crypto/${item.asset.id}`)
-													}
-												>
-													View Details
-												</Button>
-											</TableCell>
-										</TableRow>
-									);
-								})
-							) : (
-								<TableRow>
-									<TableCell colSpan={8} className="text-center text-muted-foreground">
-										No assets found. Add your first transaction to get started.
-									</TableCell>
-								</TableRow>
-							)}
-						</TableBody>
-					</Table>
-				</CardContent>
-			</Card>
+			{/* Assets Table with Virtual Scrolling */}
+			<Suspense fallback={<div className="h-96 bg-muted animate-pulse rounded" />}>
+				<CryptoAssetsTable
+					assets={dashboardData?.assets || []}
+					onViewDetails={handleViewDetails}
+				/>
+			</Suspense>
 		</div>
 	);
 }

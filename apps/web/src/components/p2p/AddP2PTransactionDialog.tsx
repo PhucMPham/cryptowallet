@@ -137,9 +137,9 @@ export function AddP2PTransactionDialog({
   const onSubmit = (values: z.infer<typeof formSchema>) => {
     const payload = {
       ...values,
-      cryptoAmount: parseFloat(values.cryptoAmount),
-      fiatAmount: parseFloat(values.fiatAmount),
-      exchangeRate: parseFloat(values.exchangeRate),
+      cryptoAmount: parseFormattedNumber(values.cryptoAmount),
+      fiatAmount: parseFormattedNumber(values.fiatAmount),
+      exchangeRate: parseFormattedNumber(values.exchangeRate),
     };
 
     if (editTransaction) {
@@ -152,14 +152,27 @@ export function AddP2PTransactionDialog({
     }
   };
 
-  // Helper function to format number with proper precision
-  const formatNumber = (num: number, decimals: number = 2): string => {
+  // Helper function to format number with Vietnamese format for display
+  const formatNumberForDisplay = (num: number, decimals: number = 2): string => {
     // Handle very small numbers
     if (num < 0.01 && num > 0) {
-      return num.toFixed(6);
+      decimals = 6;
     }
-    // Handle normal numbers
-    return num.toFixed(decimals);
+    // Format with Vietnamese style (dot for thousands, comma for decimal)
+    return new Intl.NumberFormat("vi-VN", {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: decimals,
+    }).format(num);
+  };
+
+  // Helper to parse Vietnamese formatted numbers
+  const parseFormattedNumber = (value: string): number => {
+    if (!value) return 0;
+    // Vietnamese format: 1.234.567,89 (dots for thousands, comma for decimal)
+    // First, replace dots (thousand separators) with nothing
+    // Then replace comma (decimal separator) with dot for parsing
+    const cleanValue = value.replace(/\./g, '').replace(',', '.');
+    return parseFloat(cleanValue) || 0;
   };
 
   // Populate form when editing
@@ -207,18 +220,19 @@ export function AddP2PTransactionDialog({
       // Skip if we're already updating to prevent loops
       if (isUpdating || !name) return;
 
-      const cryptoAmount = parseFloat(value.cryptoAmount || "0");
-      const fiatAmount = parseFloat(value.fiatAmount || "0");
-      const exchangeRate = parseFloat(value.exchangeRate || "0");
+      const cryptoAmount = parseFormattedNumber(value.cryptoAmount || "0");
+      const fiatAmount = parseFormattedNumber(value.fiatAmount || "0");
+      const exchangeRate = parseFormattedNumber(value.exchangeRate || "0");
 
       // When VND amount or exchange rate changes, calculate USDT
       if ((name === "fiatAmount" || name === "exchangeRate") &&
           fiatAmount > 0 && exchangeRate > 0) {
         const calculatedCryptoAmount = fiatAmount / exchangeRate;
-        const formatted = formatNumber(calculatedCryptoAmount, calculatedCryptoAmount < 100 ? 4 : 2);
+        const formatted = formatNumberForDisplay(calculatedCryptoAmount, calculatedCryptoAmount < 100 ? 4 : 2);
 
-        // Only update if the value is different
-        if (formatted !== value.cryptoAmount) {
+        // Compare parsed values instead of formatted strings
+        const currentValue = parseFormattedNumber(value.cryptoAmount || "0");
+        if (Math.abs(calculatedCryptoAmount - currentValue) > 0.0001) {
           isUpdating = true;
           form.setValue("cryptoAmount", formatted, { shouldValidate: false });
           setAutoCalculatedField("cryptoAmount");
@@ -229,10 +243,11 @@ export function AddP2PTransactionDialog({
       else if (name === "cryptoAmount" &&
                cryptoAmount > 0 && fiatAmount > 0) {
         const rate = fiatAmount / cryptoAmount;
-        const formatted = formatNumber(rate, 0);
+        const formatted = formatNumberForDisplay(rate, 0);
 
-        // Only update if the value is different
-        if (formatted !== value.exchangeRate) {
+        // Compare parsed values instead of formatted strings
+        const currentRate = parseFormattedNumber(value.exchangeRate || "0");
+        if (Math.abs(rate - currentRate) > 0.01) {
           isUpdating = true;
           form.setValue("exchangeRate", formatted, { shouldValidate: false });
           setAutoCalculatedField("exchangeRate");
@@ -337,18 +352,19 @@ export function AddP2PTransactionDialog({
                     </FormLabel>
                     <FormControl>
                       <FormattedInput
-                        placeholder="1,000.00"
+                        placeholder="1.000,00"
                         value={field.value}
                         onChange={field.onChange}
                         onBlur={field.onBlur}
-                        thousandSeparator={true}
-                        decimalScale={6}
+                        thousandSeparator="."
+                        decimalSeparator=","
+                        decimalScale={2}
                         className={autoCalculatedField === "cryptoAmount" ? "bg-muted/50" : ""}
                       />
                     </FormControl>
-                    {field.value && parseFloat(field.value) > 0 && (
+                    {field.value && parseFormattedNumber(field.value) > 0 && (
                       <p className="text-xs text-muted-foreground">
-                        ≈ ${(parseFloat(field.value) * 1).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD
+                        ≈ ${(parseFormattedNumber(field.value) * 1).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD
                       </p>
                     )}
                     <FormMessage />
@@ -364,18 +380,19 @@ export function AddP2PTransactionDialog({
                     <FormLabel>VND Amount</FormLabel>
                     <FormControl>
                       <FormattedInput
-                        placeholder="25,000,000"
+                        placeholder="25.000.000"
                         value={field.value}
                         onChange={field.onChange}
                         onBlur={field.onBlur}
-                        thousandSeparator={true}
+                        thousandSeparator="."
+                        decimalSeparator=","
                         decimalScale={0}
-                        className={field.value && parseFloat(field.value) > 1000000000 ? "text-orange-600" : ""}
+                        className={field.value && parseFormattedNumber(field.value) > 1000000000 ? "text-orange-600" : ""}
                       />
                     </FormControl>
-                    {field.value && parseFloat(field.value) > 0 && (
+                    {field.value && parseFormattedNumber(field.value) > 0 && (
                       <p className="text-xs text-muted-foreground">
-                        {parseFloat(field.value).toLocaleString("vi-VN")} ₫
+                        {parseFormattedNumber(field.value).toLocaleString("vi-VN")} ₫
                       </p>
                     )}
                     <FormMessage />
@@ -399,18 +416,19 @@ export function AddP2PTransactionDialog({
                   </FormLabel>
                   <FormControl>
                     <FormattedInput
-                      placeholder="25,000"
+                      placeholder="25.000"
                       value={field.value}
                       onChange={field.onChange}
                       onBlur={field.onBlur}
-                      thousandSeparator={true}
+                      thousandSeparator="."
+                      decimalSeparator=","
                       decimalScale={0}
                       className={autoCalculatedField === "exchangeRate" ? "bg-muted/50" : ""}
                     />
                   </FormControl>
                   <FormDescription>
-                    {field.value && parseFloat(field.value) > 0 ? (
-                      <>1 USDT = {parseFloat(field.value).toLocaleString("vi-VN")} ₫</>
+                    {field.value && parseFormattedNumber(field.value) > 0 ? (
+                      <>1 USDT = {parseFormattedNumber(field.value).toLocaleString("vi-VN")} ₫</>
                     ) : (
                       "Enter exchange rate or it will be auto-calculated"
                     )}

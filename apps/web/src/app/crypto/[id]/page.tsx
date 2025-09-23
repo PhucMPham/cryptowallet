@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { api } from "@/utils/api";
 import { getDefaultTransactionDate, formatDateForInput } from "@/utils/date";
+import { formatCurrency, formatVnd, formatNumber, formatPercent, formatCrypto } from "@/utils/formatters";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -137,30 +138,7 @@ export default function AssetDetails() {
 		});
 	};
 
-	const formatCurrency = (amount: number) => {
-		return new Intl.NumberFormat("en-US", {
-			style: "currency",
-			currency: "USD",
-			minimumFractionDigits: 2,
-			maximumFractionDigits: 2,
-		}).format(amount);
-	};
-
-	const formatVnd = (amount: number) => {
-		return new Intl.NumberFormat("vi-VN", {
-			style: "currency",
-			currency: "VND",
-			minimumFractionDigits: 0,
-			maximumFractionDigits: 0,
-		}).format(amount);
-	};
-
-	const formatNumber = (amount: number, decimals: number = 6) => {
-		return new Intl.NumberFormat("en-US", {
-			minimumFractionDigits: 0,
-			maximumFractionDigits: decimals,
-		}).format(amount);
-	};
+	// Formatters are now imported from utils/formatters.ts
 
 	const formatDate = (date: any) => {
 		return new Date(date).toLocaleDateString("en-US", {

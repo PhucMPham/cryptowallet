@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { api } from "@/utils/api";
+import { formatCurrency, formatVnd, formatNumber, formatPercent, formatCrypto, parseVietnameseNumber } from "@/utils/formatters";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -65,25 +66,26 @@ export default function P2PPage() {
     },
   });
 
-  const formatNumber = (num: number) => {
-    return new Intl.NumberFormat("vi-VN").format(num);
-  };
+  // Formatters are imported from utils/formatters.ts
 
-  const formatCurrency = (amount: number, currency: string) => {
+  const formatCurrencyWithSymbol = (amount: number, currency: string) => {
     if (currency === "VND") {
-      return `${formatNumber(amount)} ₫`;
+      return formatVnd(amount);
+    }
+    if (currency === "USD") {
+      return formatCurrency(amount);
     }
     return `${formatNumber(amount)} ${currency}`;
   };
 
   const formatPercentage = (value: number) => {
-    const formatted = value.toFixed(2);
+    const formatted = formatPercent(Math.abs(value), 2);
     if (value > 0) {
-      return <span className="text-green-600">+{formatted}%</span>;
+      return <span className="text-green-600">+{formatted}</span>;
     } else if (value < 0) {
-      return <span className="text-red-600">{formatted}%</span>;
+      return <span className="text-red-600">-{formatted}</span>;
     }
-    return <span>{formatted}%</span>;
+    return <span>{formatted}</span>;
   };
 
   return (
@@ -125,11 +127,11 @@ export default function P2PPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {formatCurrency(portfolioSummary.summary.weightedAverageRate, "VND")}
+                {formatCurrencyWithSymbol(portfolioSummary.summary.weightedAverageRate, "VND")}
               </div>
               <div className="flex items-center gap-2 mt-1">
                 <p className="text-xs text-muted-foreground">
-                  Current: {formatCurrency(portfolioSummary.summary.currentMarketRate, "VND")}
+                  Current: {formatCurrencyWithSymbol(portfolioSummary.summary.currentMarketRate, "VND")}
                 </p>
                 <Button
                   size="sm"
@@ -150,10 +152,10 @@ export default function P2PPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {formatCurrency(portfolioSummary.summary.currentValue, "VND")}
+                {formatCurrencyWithSymbol(portfolioSummary.summary.currentValue, "VND")}
               </div>
               <p className="text-xs text-muted-foreground mt-1">
-                Cost basis: {formatCurrency(portfolioSummary.summary.costBasis, "VND")}
+                Cost basis: {formatCurrencyWithSymbol(portfolioSummary.summary.costBasis, "VND")}
               </p>
             </CardContent>
           </Card>
@@ -164,7 +166,7 @@ export default function P2PPage() {
             </CardHeader>
             <CardContent>
               <div className={`text-2xl font-bold ${portfolioSummary.summary.unrealizedPnL >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                {portfolioSummary.summary.unrealizedPnL >= 0 ? '+' : ''}{formatCurrency(portfolioSummary.summary.unrealizedPnL, "VND")}
+                {portfolioSummary.summary.unrealizedPnL >= 0 ? '+' : ''}{formatCurrencyWithSymbol(portfolioSummary.summary.unrealizedPnL, "VND")}
               </div>
               <p className="text-xs mt-1">
                 {formatPercentage(portfolioSummary.summary.unrealizedPnLPercent)}
@@ -214,10 +216,10 @@ export default function P2PPage() {
                     {formatNumber(tx.cryptoAmount)} {tx.crypto}
                   </TableCell>
                   <TableCell className="text-right">
-                    {formatCurrency(tx.exchangeRate, tx.fiatCurrency)}
+                    {formatCurrencyWithSymbol(tx.exchangeRate, tx.fiatCurrency)}
                   </TableCell>
                   <TableCell className="text-right">
-                    {formatCurrency(tx.fiatAmount, tx.fiatCurrency)}
+                    {formatCurrencyWithSymbol(tx.fiatAmount, tx.fiatCurrency)}
                   </TableCell>
                   <TableCell>{tx.platform || "-"}</TableCell>
                   <TableCell>{tx.counterparty || "-"}</TableCell>

@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { api } from "@/utils/api";
 import { getDefaultTransactionDate } from "@/utils/date";
+import { formatCurrency, formatVnd, formatNumber, formatPercent } from "@/utils/formatters";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -96,30 +97,7 @@ export default function CryptoTracker() {
 		});
 	};
 
-	const formatCurrency = (amount: number) => {
-		return new Intl.NumberFormat("en-US", {
-			style: "currency",
-			currency: "USD",
-			minimumFractionDigits: 2,
-			maximumFractionDigits: 2,
-		}).format(amount);
-	};
-
-	const formatVnd = (amount: number) => {
-		return new Intl.NumberFormat("vi-VN", {
-			style: "currency",
-			currency: "VND",
-			minimumFractionDigits: 0,
-			maximumFractionDigits: 0,
-		}).format(amount);
-	};
-
-	const formatNumber = (amount: number, decimals: number = 6) => {
-		return new Intl.NumberFormat("en-US", {
-			minimumFractionDigits: 0,
-			maximumFractionDigits: decimals,
-		}).format(amount);
-	};
+	// Formatters are now imported from utils/formatters.ts
 
 	return (
 		<div className="container mx-auto p-6 space-y-6">
@@ -419,10 +397,9 @@ export default function CryptoTracker() {
 						<TableHeader>
 							<TableRow>
 								<TableHead>Symbol</TableHead>
-								<TableHead>Name</TableHead>
+								<TableHead>Name / Current Price</TableHead>
 								<TableHead className="text-right">Holdings</TableHead>
 								<TableHead className="text-right">Avg Buy Price</TableHead>
-								<TableHead className="text-right">Current Price</TableHead>
 								<TableHead className="text-right">Current Value</TableHead>
 								<TableHead className="text-right">Profit/Loss</TableHead>
 								<TableHead className="text-right">P&L %</TableHead>
@@ -455,7 +432,30 @@ export default function CryptoTracker() {
 													<span>{item.asset.symbol}</span>
 												</div>
 											</TableCell>
-											<TableCell>{item.asset.name}</TableCell>
+											<TableCell>
+												<div className="space-y-1">
+													<div className="font-medium">{item.asset.name}</div>
+													{item.currentPrice ? (
+														<div className="flex items-center gap-2">
+															<span className="text-sm text-muted-foreground">
+																{formatCurrency(item.currentPrice)}
+															</span>
+															{item.currentPrice !== item.avgBuyPrice && item.totalQuantity > 0 && (
+																<span className={`text-xs px-1.5 py-0.5 rounded-md font-medium ${
+																	item.currentPrice > item.avgBuyPrice
+																		? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+																		: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+																}`}>
+																	{item.currentPrice > item.avgBuyPrice ? "↑" : "↓"}
+																	{formatPercent(Math.abs(((item.currentPrice - item.avgBuyPrice) / item.avgBuyPrice) * 100), 1)}
+																</span>
+															)}
+														</div>
+													) : (
+														<span className="text-sm text-muted-foreground">No price data</span>
+													)}
+												</div>
+											</TableCell>
 											<TableCell className="text-right">
 												{formatNumber(item.totalQuantity)}
 											</TableCell>
@@ -466,32 +466,6 @@ export default function CryptoTracker() {
 												<div className="text-xs text-muted-foreground">
 													{formatCurrency(item.avgBuyPrice)}
 												</div>
-											</TableCell>
-											<TableCell className="text-right">
-												{item.currentPrice ? (
-													<div className="flex items-center justify-end gap-2">
-														{item.logoUrl && (
-															<img
-																src={item.logoUrl}
-																alt={item.asset.symbol}
-																className="w-4 h-4 rounded-full"
-																onError={(e) => {
-																	e.currentTarget.style.display = 'none';
-																}}
-															/>
-														)}
-														<div>
-															<div className="font-medium">
-																{formatVnd(item.vnd?.currentPrice || 0)}
-															</div>
-															<div className="text-xs text-muted-foreground">
-																{formatCurrency(item.currentPrice)}
-															</div>
-														</div>
-													</div>
-												) : (
-													<span className="text-muted-foreground">-</span>
-												)}
 											</TableCell>
 											<TableCell className="text-right">
 												{hasHoldings && item.currentValue > 0 ? (
@@ -542,7 +516,7 @@ export default function CryptoTracker() {
 														}`}
 													>
 														{item.unrealizedPLPercent >= 0 ? "+" : ""}
-														{item.unrealizedPLPercent.toFixed(2)}%
+														{formatPercent(item.unrealizedPLPercent, 2)}
 													</span>
 												) : (
 													<span className="text-muted-foreground">-</span>
@@ -564,7 +538,7 @@ export default function CryptoTracker() {
 								})
 							) : (
 								<TableRow>
-									<TableCell colSpan={9} className="text-center text-muted-foreground">
+									<TableCell colSpan={8} className="text-center text-muted-foreground">
 										No assets found. Add your first transaction to get started.
 									</TableCell>
 								</TableRow>

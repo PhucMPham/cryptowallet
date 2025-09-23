@@ -1,5 +1,4 @@
 import { protectedProcedure, publicProcedure, router } from "../lib/trpc";
-import { todoRouter } from "./todo";
 import { cryptoRouter } from "./crypto";
 import { p2pRouter } from "./p2p";
 
@@ -13,7 +12,6 @@ export const appRouter = router({
 			user: ctx.session.user,
 		};
 	}),
-	todo: todoRouter,
 	crypto: cryptoRouter,
 	p2p: p2pRouter,
 });

@@ -59,11 +59,34 @@ export default function AssetDetails() {
 		{ enabled: !!assetId }
 	);
 
+	// Get USDT balance for payment source
+	const { data: dashboardData } = api.crypto.getDashboardData.useQuery();
+	const usdtAsset = dashboardData?.assets.find(a => a.asset.symbol === "USDT");
+	const usdtBalance = usdtAsset?.totalQuantity || 0;
+
 	// Mutations
 	const addTransactionMutation = api.crypto.addTransaction.useMutation({
 		onSuccess: () => {
-			toast.success("Transaction added successfully!");
+			const wasUsdtPayment = transactionForm.paymentSource === "USDT" && transactionForm.type === "buy" && data?.asset.symbol !== "USDT";
+			if (wasUsdtPayment) {
+				const amount = parseFloat(transactionForm.quantity) * parseFloat(transactionForm.pricePerUnit);
+				toast.success(`✅ Bought ${transactionForm.quantity} ${data?.asset.symbol} using ${amount.toFixed(2)} USDT!`);
+			} else {
+				toast.success("Transaction added successfully!");
+			}
 			setIsAddingTransaction(false);
+			// Reset form
+			setTransactionForm({
+				type: "buy",
+				quantity: "",
+				pricePerUnit: "",
+				fee: "",
+				feeCurrency: "USD",
+				paymentSource: "CASH",
+				exchange: "",
+				notes: "",
+				transactionDate: getDefaultTransactionDate(),
+			});
 			refetch();
 		},
 	});
@@ -89,6 +112,7 @@ export default function AssetDetails() {
 		pricePerUnit: "",
 		fee: "",
 		feeCurrency: "USD" as "USD" | "CRYPTO",
+		paymentSource: "CASH" as "CASH" | "USDT",
 		exchange: "",
 		notes: "",
 		transactionDate: "",
@@ -108,6 +132,15 @@ export default function AssetDetails() {
 			return;
 		}
 
+		// Check if user has enough USDT when buying with USDT
+		if (transactionForm.type === "buy" && transactionForm.paymentSource === "USDT" && data?.asset.symbol !== "USDT") {
+			const totalCost = parseFloat(transactionForm.quantity) * parseFloat(transactionForm.pricePerUnit) + (transactionForm.fee ? parseFloat(transactionForm.fee) : 0);
+			if (totalCost > usdtBalance) {
+				toast.error(`Insufficient USDT balance. You have ${usdtBalance.toFixed(2)} USDT but need ${totalCost.toFixed(2)} USDT`);
+				return;
+			}
+		}
+
 		await addTransactionMutation.mutate({
 			assetId,
 			symbol: data?.asset.symbol || "",
@@ -117,6 +150,7 @@ export default function AssetDetails() {
 			pricePerUnit: parseFloat(transactionForm.pricePerUnit),
 			fee: transactionForm.fee ? parseFloat(transactionForm.fee) : undefined,
 			feeCurrency: transactionForm.feeCurrency,
+			paymentSource: transactionForm.paymentSource,
 			exchange: transactionForm.exchange || undefined,
 			notes: transactionForm.notes || undefined,
 			transactionDate: transactionForm.transactionDate,
@@ -224,6 +258,39 @@ export default function AssetDetails() {
 									</SelectContent>
 								</Select>
 							</div>
+							{/* Payment Source selector - only show for Buy transactions and non-USDT */}
+							{transactionForm.type === "buy" && data.asset.symbol !== "USDT" && (
+								<div>
+									<Label htmlFor="paymentSource">Payment Source</Label>
+									<Select
+										value={transactionForm.paymentSource}
+										onValueChange={(value) =>
+											setTransactionForm({
+												...transactionForm,
+												paymentSource: value as "CASH" | "USDT",
+											})
+										}
+									>
+										<SelectTrigger>
+											<SelectValue />
+										</SelectTrigger>
+										<SelectContent>
+											<SelectItem value="CASH">Cash (USD)</SelectItem>
+											<SelectItem value="USDT">
+												USDT Balance ({usdtBalance.toFixed(2)} USDT)
+											</SelectItem>
+										</SelectContent>
+									</Select>
+									{transactionForm.paymentSource === "USDT" && transactionForm.quantity && transactionForm.pricePerUnit && (
+										<div className="mt-2 p-2 bg-muted rounded text-sm">
+											<div>Total Cost: {(parseFloat(transactionForm.quantity || "0") * parseFloat(transactionForm.pricePerUnit || "0")).toFixed(2)} USDT</div>
+											<div className={`font-semibold ${(parseFloat(transactionForm.quantity || "0") * parseFloat(transactionForm.pricePerUnit || "0")) > usdtBalance ? "text-destructive" : "text-green-600"}`}>
+												Remaining: {(usdtBalance - parseFloat(transactionForm.quantity || "0") * parseFloat(transactionForm.pricePerUnit || "0")).toFixed(2)} USDT
+											</div>
+										</div>
+									)}
+								</div>
+							)}
 							<div className="grid grid-cols-2 gap-4">
 								<div>
 									<Label htmlFor="quantity">Quantity *</Label>

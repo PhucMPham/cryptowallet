@@ -34,14 +34,20 @@ import { getCryptoLogo } from "@/utils/crypto-logos";
 import Image from "next/image";
 
 // Performance metrics calculation
-const calculateMetrics = (portfolio: any, assets: any[], p2pSummary: any) => {
+const calculateMetrics = (portfolio: any, assets: any[], vndRate: number) => {
 	const totalInvested = portfolio?.totalInvested || 0;
 	const totalValue = portfolio?.totalValue || 0;
-	const totalPnL = portfolio?.totalPnL || 0;
-	const p2pProfit = p2pSummary?.unrealizedPnL || 0;
+	const cryptoPnLUSD = portfolio?.totalPnL || 0;
 
-	// Calculate ROI
+	// Calculate total P&L in both currencies (now only from crypto since P2P is included)
+	const totalPnLUSD = cryptoPnLUSD;
+	const totalPnLVND = cryptoPnLUSD * vndRate;
+
+	// Calculate ROI based on USD values
 	const roi = totalInvested > 0 ? ((totalValue - totalInvested) / totalInvested) * 100 : 0;
+
+	// Ensure ROI is a valid number
+	const validRoi = !isNaN(roi) && isFinite(roi) ? roi : 0;
 
 	// Calculate best and worst performers
 	const sortedAssets = [...(assets || [])].sort((a, b) => (b.pnlPercent || 0) - (a.pnlPercent || 0));
@@ -55,12 +61,13 @@ const calculateMetrics = (portfolio: any, assets: any[], p2pSummary: any) => {
 	const volatility = calculateVolatility(assets);
 
 	return {
-		roi,
+		roi: validRoi,
 		bestPerformer,
 		worstPerformer,
 		diversificationScore,
 		volatility,
-		totalPnLWithP2P: totalPnL + p2pProfit,
+		totalPnLUSD: !isNaN(totalPnLUSD) ? totalPnLUSD : 0,
+		totalPnLVND: !isNaN(totalPnLVND) ? totalPnLVND : 0,
 	};
 };
 
@@ -138,12 +145,14 @@ export default function DashboardPage() {
 
 	// Calculate metrics
 	const vndRate = dashboardData?.vndRate?.usdToVnd || 25000;
-	const metrics = calculateMetrics(dashboardData?.portfolio, dashboardData?.assets, p2pSummary?.summary);
+	const metrics = calculateMetrics(dashboardData?.portfolio, dashboardData?.assets, vndRate);
 
-	const totalCryptoValue = dashboardData?.portfolio?.totalValue || 0;
-	const totalP2PValue = p2pSummary?.summary?.currentValue || 0;
-	const totalPortfolioValue = totalCryptoValue + totalP2PValue;
-	const totalInvested = dashboardData?.portfolio?.totalInvested || 0;
+	// All values are now in the crypto portfolio (including P2P USDT)
+	const totalPortfolioValueUSD = dashboardData?.portfolio?.totalValue || 0;
+	const totalPortfolioValueVND = totalPortfolioValueUSD * vndRate;
+
+	const totalInvestedUSD = dashboardData?.portfolio?.totalInvested || 0;
+	const totalInvestedVND = totalInvestedUSD * vndRate;
 
 	// Handle refresh
 	const handleRefresh = async () => {
@@ -157,9 +166,12 @@ export default function DashboardPage() {
 		const report = {
 			generatedAt: new Date().toISOString(),
 			portfolio: {
-				totalValue: totalPortfolioValue,
-				totalInvested,
-				totalPnL: metrics.totalPnLWithP2P,
+				totalValueVND: totalPortfolioValueVND,
+				totalValueUSD: totalPortfolioValueUSD,
+				totalInvestedVND: totalInvestedVND,
+				totalInvestedUSD: totalInvestedUSD,
+				totalPnLVND: metrics.totalPnLVND,
+				totalPnLUSD: metrics.totalPnLUSD,
 				roi: metrics.roi,
 				assets: dashboardData?.assets,
 			},
@@ -230,10 +242,10 @@ export default function DashboardPage() {
 							</CardHeader>
 							<CardContent>
 								<div className="text-2xl font-bold">
-									{maskValue(formatVnd(totalPortfolioValue * vndRate))}
+									{maskValue(formatVnd(totalPortfolioValueVND))}
 								</div>
 								<p className="text-xs text-muted-foreground mt-1">
-									≈ {maskValue(formatCurrency(totalPortfolioValue))}
+									≈ {maskValue(formatCurrency(totalPortfolioValueUSD))}
 								</p>
 								{dashboardData?.vndRate && (
 									<Badge variant="outline" className="mt-2 text-xs">
@@ -250,16 +262,16 @@ export default function DashboardPage() {
 								</CardTitle>
 							</CardHeader>
 							<CardContent>
-								<div className={`text-2xl font-bold ${metrics.totalPnLWithP2P >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-									{metrics.totalPnLWithP2P >= 0 ? '+' : ''}{maskValue(formatVnd(metrics.totalPnLWithP2P * vndRate))}
+								<div className={`text-2xl font-bold ${metrics.totalPnLVND >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+									{metrics.totalPnLVND >= 0 ? '+' : ''}{maskValue(formatVnd(metrics.totalPnLVND))}
 								</div>
 								<div className="flex items-center gap-2 mt-1">
-									{metrics.totalPnLWithP2P >= 0 ? (
+									{metrics.totalPnLVND >= 0 ? (
 										<TrendingUp className="h-4 w-4 text-green-600" />
 									) : (
 										<TrendingDown className="h-4 w-4 text-red-600" />
 									)}
-									<span className={`text-sm font-medium ${metrics.totalPnLWithP2P >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+									<span className={`text-sm font-medium ${metrics.totalPnLVND >= 0 ? 'text-green-600' : 'text-red-600'}`}>
 										{formatPercent(Math.abs(metrics.roi))}
 									</span>
 								</div>
@@ -337,7 +349,7 @@ export default function DashboardPage() {
 									<CardContent>
 										<div className="space-y-4">
 											{dashboardData?.assets?.map((asset: any) => {
-												const percentage = (asset.currentValue / totalCryptoValue) * 100;
+												const percentage = (asset.currentValue / totalPortfolioValueUSD) * 100;
 												return (
 													<div key={asset.asset.id} className="space-y-2">
 														<div className="flex items-center justify-between">
@@ -364,25 +376,6 @@ export default function DashboardPage() {
 													</div>
 												);
 											})}
-											{p2pSummary?.summary && p2pSummary.summary.currentValue > 0 && (
-												<div className="space-y-2 pt-2 border-t">
-													<div className="flex items-center justify-between">
-														<div className="flex items-center gap-2">
-															<DollarSign className="h-6 w-6" />
-															<span className="font-medium">P2P USDT</span>
-														</div>
-														<span className="text-sm text-muted-foreground">
-															{formatPercent((totalP2PValue / totalPortfolioValue) * 100)}
-														</span>
-													</div>
-													<div className="w-full bg-gray-200 rounded-full h-2">
-														<div
-															className="bg-green-600 h-2 rounded-full"
-															style={{ width: `${(totalP2PValue / totalPortfolioValue) * 100}%` }}
-														/>
-													</div>
-												</div>
-											)}
 										</div>
 									</CardContent>
 								</Card>
@@ -447,19 +440,19 @@ export default function DashboardPage() {
 											<div className="flex justify-between">
 												<span className="text-sm text-muted-foreground">Total Invested</span>
 												<span className="font-medium">
-													{maskValue(formatVnd(totalInvested * vndRate))}
+													{maskValue(formatVnd(totalInvestedVND))}
 												</span>
 											</div>
 											<div className="flex justify-between">
 												<span className="text-sm text-muted-foreground">Current Value</span>
 												<span className="font-medium">
-													{maskValue(formatVnd(totalPortfolioValue * vndRate))}
+													{maskValue(formatVnd(totalPortfolioValueVND))}
 												</span>
 											</div>
 											<div className="flex justify-between">
 												<span className="text-sm text-muted-foreground">Total Return</span>
-												<span className={`font-medium ${metrics.totalPnLWithP2P >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-													{metrics.totalPnLWithP2P >= 0 ? '+' : ''}{maskValue(formatVnd(metrics.totalPnLWithP2P * vndRate))}
+												<span className={`font-medium ${metrics.totalPnLVND >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+													{metrics.totalPnLVND >= 0 ? '+' : ''}{maskValue(formatVnd(metrics.totalPnLVND))}
 												</span>
 											</div>
 										</div>
@@ -579,38 +572,6 @@ export default function DashboardPage() {
 														</td>
 													</tr>
 												))}
-												{p2pSummary?.summary && (
-													<tr className="border-b hover:bg-gray-50 font-medium">
-														<td className="py-3">
-															<div className="flex items-center gap-2">
-																<DollarSign className="h-8 w-8" />
-																<div>
-																	<p className="font-medium">P2P USDT</p>
-																	<p className="text-sm text-muted-foreground">Trading</p>
-																</div>
-															</div>
-														</td>
-														<td className="text-right py-3">
-															{formatCrypto(p2pSummary.summary.currentHoldings)} USDT
-														</td>
-														<td className="text-right py-3">
-															{maskValue(formatVnd(p2pSummary.summary.weightedAverageRate))}
-														</td>
-														<td className="text-right py-3">
-															{maskValue(formatVnd(p2pSummary.summary.currentMarketRate))}
-														</td>
-														<td className="text-right py-3">
-															{maskValue(formatVnd(p2pSummary.summary.currentValue))}
-														</td>
-														<td className={`text-right py-3 font-medium ${p2pSummary.summary.unrealizedPnL >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-															{p2pSummary.summary.unrealizedPnL >= 0 ? '+' : ''}{maskValue(formatVnd(p2pSummary.summary.unrealizedPnL))}
-														</td>
-														<td className={`text-right py-3 font-medium ${p2pSummary.summary.unrealizedPnLPercent >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-															{p2pSummary.summary.unrealizedPnLPercent >= 0 ? '+' : ''}{formatPercent(p2pSummary.summary.unrealizedPnLPercent)}
-														</td>
-														<td className="text-right py-3">-</td>
-													</tr>
-												)}
 											</tbody>
 										</table>
 									</div>
@@ -629,7 +590,7 @@ export default function DashboardPage() {
 									<CardContent>
 										<div className="space-y-4">
 											{dashboardData?.assets?.map((asset: any) => {
-												const percentage = (asset.currentValue / totalPortfolioValue) * 100;
+												const percentage = (asset.currentValue / totalPortfolioValueUSD) * 100;
 												return (
 													<div key={asset.asset.id}>
 														<div className="flex justify-between mb-1">
@@ -647,22 +608,6 @@ export default function DashboardPage() {
 													</div>
 												);
 											})}
-											{p2pSummary?.summary && p2pSummary.summary.currentValue > 0 && (
-												<div>
-													<div className="flex justify-between mb-1">
-														<span className="text-sm font-medium">P2P USDT</span>
-														<span className="text-sm text-muted-foreground">
-															{formatVnd(totalP2PValue)} ({formatPercent((totalP2PValue / totalPortfolioValue) * 100)})
-														</span>
-													</div>
-													<div className="w-full bg-gray-200 rounded-full h-3">
-														<div
-															className="bg-gradient-to-r from-green-500 to-green-600 h-3 rounded-full"
-															style={{ width: `${(totalP2PValue / totalPortfolioValue) * 100}%` }}
-														/>
-													</div>
-												</div>
-											)}
 										</div>
 									</CardContent>
 								</Card>
@@ -675,8 +620,8 @@ export default function DashboardPage() {
 									<CardContent>
 										<div className="space-y-3">
 											{dashboardData?.assets?.map((asset: any) => {
-												const currentAllocation = (asset.currentValue / totalPortfolioValue) * 100;
-												const targetAllocation = 100 / (dashboardData.assets.length + (p2pSummary?.summary?.currentValue > 0 ? 1 : 0));
+												const currentAllocation = (asset.currentValue / totalPortfolioValueUSD) * 100;
+												const targetAllocation = 100 / dashboardData.assets.length;
 												const difference = currentAllocation - targetAllocation;
 
 												if (Math.abs(difference) > 5) {
@@ -701,7 +646,7 @@ export default function DashboardPage() {
 																Current: {formatPercent(currentAllocation)} → Target: {formatPercent(targetAllocation)}
 															</div>
 															<div className="mt-1 text-sm">
-																{difference > 0 ? "Consider selling" : "Consider buying"} {formatVnd(Math.abs(difference * totalPortfolioValue / 100) * vndRate)}
+																{difference > 0 ? "Consider selling" : "Consider buying"} {formatVnd(Math.abs(difference * totalPortfolioValueUSD / 100) * vndRate)}
 															</div>
 														</div>
 													);
@@ -709,7 +654,7 @@ export default function DashboardPage() {
 												return null;
 											})}
 											{dashboardData?.assets?.every((asset: any) => {
-												const currentAllocation = (asset.currentValue / totalPortfolioValue) * 100;
+												const currentAllocation = (asset.currentValue / totalPortfolioValueUSD) * 100;
 												const targetAllocation = 100 / dashboardData.assets.length;
 												return Math.abs(currentAllocation - targetAllocation) <= 5;
 											}) && (

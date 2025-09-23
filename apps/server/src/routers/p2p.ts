@@ -83,7 +83,10 @@ export const p2pRouter = router({
 	// Create new P2P transaction
 	addTransaction: publicProcedure
 		.input(createP2PTransactionSchema)
-		.mutation(async ({ input }) => {
+		.mutation(async ({ input, ctx }) => {
+			// Import crypto schema
+			const { cryptoAsset, cryptoTransaction } = await import("../db/schema/crypto");
+
 			// Validate that crypto amount matches the calculation
 			const calculatedCryptoAmount = input.fiatAmount / input.exchangeRate;
 			const difference = Math.abs(calculatedCryptoAmount - input.cryptoAmount);
@@ -142,6 +145,53 @@ export const p2pRouter = router({
 				})
 				.returning();
 
+			// Only sync USDT transactions to crypto portfolio
+			if (input.crypto === "USDT") {
+				// Check if USDT asset exists, create if not
+				let usdtAsset = await db
+					.select()
+					.from(cryptoAsset)
+					.where(eq(cryptoAsset.symbol, "USDT"))
+					.limit(1);
+
+				if (usdtAsset.length === 0) {
+					// Create USDT asset
+					const [newAsset] = await db
+						.insert(cryptoAsset)
+						.values({
+							symbol: "USDT",
+							name: "Tether",
+							userId: ctx.session?.user?.id,
+						})
+						.returning();
+					usdtAsset = [newAsset];
+				}
+
+				// Convert VND to USD for the crypto transaction
+				// P2P rate is in VND, we need USD price per unit
+				const pricePerUnitUSD = 1.0; // USDT is pegged to 1 USD
+				const totalAmountUSD = calculatedCryptoAmount * pricePerUnitUSD;
+
+				// Calculate fee in USD (if fee exists, convert from VND)
+				const feeInUSD = feeAmount ? feeAmount / input.exchangeRate : 0;
+
+				// Create corresponding crypto transaction
+				await db
+					.insert(cryptoTransaction)
+					.values({
+						assetId: usdtAsset[0].id,
+						type: input.type, // 'buy' or 'sell'
+						quantity: calculatedCryptoAmount,
+						pricePerUnit: pricePerUnitUSD,
+						totalAmount: totalAmountUSD,
+						fee: feeInUSD,
+						feeInCrypto: 0, // P2P fees are in fiat
+						exchange: `P2P-${input.platform || 'Direct'}`,
+						notes: `P2P ${input.type} at ${input.exchangeRate.toFixed(0)} VND/USDT${input.notes ? ` - ${input.notes}` : ''}`,
+						transactionDate: new Date(input.transactionDate),
+					});
+			}
+
 			return result[0];
 		}),
 
@@ -177,16 +227,42 @@ export const p2pRouter = router({
 	deleteTransaction: publicProcedure
 		.input(z.object({ id: z.number() }))
 		.mutation(async ({ input }) => {
+			// Import crypto schema
+			const { cryptoTransaction } = await import("../db/schema/crypto");
+
+			// First get the transaction to check if it's USDT
+			const txToDelete = await db
+				.select()
+				.from(p2pTransaction)
+				.where(eq(p2pTransaction.id, input.id))
+				.limit(1);
+
+			if (txToDelete.length === 0) {
+				throw new TRPCError({
+					code: "NOT_FOUND",
+					message: "P2P transaction not found",
+				});
+			}
+
+			// Delete the P2P transaction
 			const result = await db
 				.delete(p2pTransaction)
 				.where(eq(p2pTransaction.id, input.id))
 				.returning();
 
-			if (result.length === 0) {
-				throw new TRPCError({
-					code: "NOT_FOUND",
-					message: "P2P transaction not found",
-				});
+			// If it was a USDT transaction, also delete the corresponding crypto transaction
+			if (txToDelete[0].crypto === "USDT") {
+				// Find and delete crypto transaction by matching exchange prefix and date
+				const transactionDate = new Date(txToDelete[0].transactionDate);
+				await db
+					.delete(cryptoTransaction)
+					.where(
+						and(
+							sql`${cryptoTransaction.exchange} LIKE 'P2P-%'`,
+							sql`DATE(${cryptoTransaction.transactionDate}) = DATE(${transactionDate})`,
+							sql`ABS(${cryptoTransaction.quantity} - ${txToDelete[0].cryptoAmount}) < 0.01`
+						)
+					);
 			}
 
 			return result[0];

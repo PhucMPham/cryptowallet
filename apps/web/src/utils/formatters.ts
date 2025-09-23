@@ -13,6 +13,10 @@
  * @returns Formatted string with VND symbol
  */
 export const formatVnd = (amount: number): string => {
+  // Handle invalid numbers
+  if (!isFinite(amount) || isNaN(amount)) {
+    return "₫0";
+  }
   return new Intl.NumberFormat("vi-VN", {
     style: "currency",
     currency: "VND",

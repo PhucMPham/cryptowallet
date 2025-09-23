@@ -139,3 +139,4 @@ export const cryptoRouter = router({
 - **Fee Conversion**: Always stored in USD, original crypto amount preserved in `feeInCrypto`
 
 ##TRPC_API_GUIDES docs/TRPC_API_GUIDE.md 
+VND is primary display currency and USD should be secondary

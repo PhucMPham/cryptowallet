@@ -350,6 +350,7 @@ export const cryptoRouter = router({
 				pricePerUnit: z.number().positive(),
 				fee: z.number().min(0).optional(),
 				feeCurrency: z.enum(["USD", "CRYPTO"]).optional().default("USD"),
+				paymentSource: z.enum(["CASH", "USDT"]).optional().default("CASH"),
 				exchange: z.string().optional(),
 				notes: z.string().optional(),
 				transactionDate: z.date().or(z.string()),
@@ -396,6 +397,50 @@ export const cryptoRouter = router({
 				feeInUSD = input.fee * input.pricePerUnit; // Convert crypto fee to USD using transaction price
 			}
 
+			// If buying with USDT, create a corresponding USDT sell transaction
+			if (input.type === "buy" && input.paymentSource === "USDT" && input.symbol !== "USDT") {
+				// Find or create USDT asset
+				let usdtAsset = await db
+					.select()
+					.from(cryptoAsset)
+					.where(eq(cryptoAsset.symbol, "USDT"))
+					.limit(1);
+
+				if (!usdtAsset[0]) {
+					// Create USDT asset if it doesn't exist
+					const [newUsdtAsset] = await db
+						.insert(cryptoAsset)
+						.values({
+							symbol: "USDT",
+							name: "Tether",
+							userId: ctx.session?.user?.id,
+						})
+						.returning();
+					usdtAsset = [newUsdtAsset];
+				}
+
+				// Calculate USDT amount to sell (total cost including fees)
+				const usdtAmountToSell = totalAmount + feeInUSD;
+
+				// Create USDT sell transaction
+				await db
+					.insert(cryptoTransaction)
+					.values({
+						assetId: usdtAsset[0].id,
+						type: "sell",
+						quantity: usdtAmountToSell,
+						pricePerUnit: 1.0, // USDT is pegged to 1 USD
+						totalAmount: usdtAmountToSell,
+						fee: 0, // No additional fee for the USDT conversion
+						feeCurrency: "USD",
+						exchange: input.exchange || "Internal",
+						notes: `Used USDT to buy ${input.quantity} ${input.symbol} at $${input.pricePerUnit}`,
+						transactionDate,
+						userId: ctx.session?.user?.id,
+					});
+			}
+
+			// Create the main transaction
 			const [transaction] = await db
 				.insert(cryptoTransaction)
 				.values({
@@ -403,12 +448,14 @@ export const cryptoRouter = router({
 					type: input.type,
 					quantity: input.quantity,
 					pricePerUnit: input.pricePerUnit,
-					totalAmount,
-					fee: feeInUSD,
+					totalAmount: input.paymentSource === "USDT" ? 0 : totalAmount, // Set to 0 if paid with USDT
+					fee: input.paymentSource === "USDT" ? 0 : feeInUSD, // Set to 0 if paid with USDT
 					feeCurrency: input.feeCurrency || "USD",
 					feeInCrypto,
 					exchange: input.exchange,
-					notes: input.notes,
+					notes: input.paymentSource === "USDT"
+						? `${input.notes ? input.notes + " - " : ""}Purchased with USDT`
+						: input.notes,
 					transactionDate,
 					userId: ctx.session?.user?.id,
 				})
@@ -476,7 +523,7 @@ export const cryptoRouter = router({
 
 			const [updated] = await db
 				.update(cryptoTransaction)
-				.set(updateData)
+				.set(updateData as any)
 				.where(eq(cryptoTransaction.id, id))
 				.returning();
 

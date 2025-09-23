@@ -32,6 +32,7 @@ import {
 import { format } from "date-fns";
 import { getCryptoLogo } from "@/utils/crypto-logos";
 import Image from "next/image";
+import { PortfolioPieChart } from "@/components/portfolio-pie-chart";
 
 // Performance metrics calculation
 const calculateMetrics = (portfolio: any, assets: any[], vndRate: number) => {
@@ -357,36 +358,11 @@ export default function DashboardPage() {
 										<CardDescription>Asset allocation by value</CardDescription>
 									</CardHeader>
 									<CardContent>
-										<div className="space-y-4">
-											{dashboardData?.assets?.map((asset: any) => {
-												const percentage = (asset.currentValue / totalPortfolioValueUSD) * 100;
-												return (
-													<div key={asset.asset.id} className="space-y-2">
-														<div className="flex items-center justify-between">
-															<div className="flex items-center gap-2">
-																<Image
-																	src={getCryptoLogo(asset.asset.symbol)}
-																	alt={asset.asset.symbol}
-																	width={24}
-																	height={24}
-																	className="rounded-full"
-																/>
-																<span className="font-medium">{asset.asset.symbol}</span>
-															</div>
-															<span className="text-sm text-muted-foreground">
-																{!isNaN(percentage) && isFinite(percentage) ? formatPercent(percentage) : '0.00%'}
-															</span>
-														</div>
-														<div className="w-full bg-gray-200 rounded-full h-2">
-															<div
-																className="bg-blue-600 h-2 rounded-full"
-																style={{ width: `${!isNaN(percentage) && isFinite(percentage) ? Math.min(percentage, 100) : 0}%` }}
-															/>
-														</div>
-													</div>
-												);
-											})}
-										</div>
+										<PortfolioPieChart
+											assets={dashboardData?.assets || []}
+											totalPortfolioValueUSD={totalPortfolioValueUSD}
+											vndRate={vndRate}
+										/>
 									</CardContent>
 								</Card>
 

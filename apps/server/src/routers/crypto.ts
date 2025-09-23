@@ -908,15 +908,23 @@ export const cryptoRouter = router({
 			assetCount: 0,
 		};
 
+		// Calculate total portfolio value and P&L from assets
+		const totalValue = assetsWithPrices.reduce((sum, asset) => sum + (asset.currentValue || 0), 0);
+		const totalPnL = assetsWithPrices.reduce((sum, asset) => sum + (asset.unrealizedPL || 0), 0);
+
 		return {
 			assets: assetsWithPrices,
 			portfolio: {
 				...portfolio,
+				totalValue,
+				totalPnL,
 				vnd: {
 					totalInvested: portfolio.totalInvested * vndConversion.usdToVnd,
 					totalSold: portfolio.totalSold * vndConversion.usdToVnd,
 					totalFees: portfolio.totalFees * vndConversion.usdToVnd,
 					netInvested: (portfolio.totalInvested - portfolio.totalSold) * vndConversion.usdToVnd,
+					totalValue: totalValue * vndConversion.usdToVnd,
+					totalPnL: totalPnL * vndConversion.usdToVnd,
 					exchangeRate: vndConversion.usdToVnd,
 					source: vndConversion.source,
 				}

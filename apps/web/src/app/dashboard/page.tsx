@@ -44,9 +44,19 @@ const calculateMetrics = (portfolio: any, assets: any[], vndRate: number) => {
 	const totalPnLVND = cryptoPnLUSD * vndRate;
 
 	// Calculate ROI based on USD values
-	const roi = totalInvested > 0 ? ((totalValue - totalInvested) / totalInvested) * 100 : 0;
+	// Handle edge cases properly:
+	// - If no investment and no value: 0%
+	// - If no investment but has value (e.g., from airdrops/rewards): show 0% to avoid infinity
+	// - If investment exists: calculate normal ROI
+	let roi = 0;
+	if (totalInvested > 0) {
+		roi = ((totalValue - totalInvested) / totalInvested) * 100;
+	} else if (totalValue > 0) {
+		// Has value but no investment - avoid showing infinity
+		roi = 0;
+	}
 
-	// Ensure ROI is a valid number
+	// Ensure ROI is a valid number and handle edge cases
 	const validRoi = !isNaN(roi) && isFinite(roi) ? roi : 0;
 
 	// Calculate best and worst performers
@@ -272,7 +282,7 @@ export default function DashboardPage() {
 										<TrendingDown className="h-4 w-4 text-red-600" />
 									)}
 									<span className={`text-sm font-medium ${metrics.totalPnLVND >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-										{formatPercent(Math.abs(metrics.roi))}
+										{!isNaN(metrics.roi) && isFinite(metrics.roi) ? formatPercent(Math.abs(metrics.roi)) : '0.00%'}
 									</span>
 								</div>
 							</CardContent>
@@ -364,13 +374,13 @@ export default function DashboardPage() {
 																<span className="font-medium">{asset.asset.symbol}</span>
 															</div>
 															<span className="text-sm text-muted-foreground">
-																{formatPercent(percentage)}
+																{!isNaN(percentage) && isFinite(percentage) ? formatPercent(percentage) : '0.00%'}
 															</span>
 														</div>
 														<div className="w-full bg-gray-200 rounded-full h-2">
 															<div
 																className="bg-blue-600 h-2 rounded-full"
-																style={{ width: `${percentage}%` }}
+																style={{ width: `${!isNaN(percentage) && isFinite(percentage) ? Math.min(percentage, 100) : 0}%` }}
 															/>
 														</div>
 													</div>
@@ -401,7 +411,10 @@ export default function DashboardPage() {
 													</div>
 													<div className="text-right">
 														<p className="font-bold text-green-600">
-															+{formatPercent(metrics.bestPerformer.pnlPercent)}
+															{!isNaN(metrics.bestPerformer.pnlPercent) && isFinite(metrics.bestPerformer.pnlPercent) ?
+													'+' + formatPercent(metrics.bestPerformer.pnlPercent) :
+													'+N/A'
+												}
 														</p>
 														<p className="text-sm text-muted-foreground">
 															+{formatVnd(metrics.bestPerformer.pnl * vndRate)}
@@ -425,7 +438,10 @@ export default function DashboardPage() {
 													</div>
 													<div className="text-right">
 														<p className="font-bold text-red-600">
-															{formatPercent(metrics.worstPerformer.pnlPercent)}
+															{!isNaN(metrics.worstPerformer.pnlPercent) && isFinite(metrics.worstPerformer.pnlPercent) ?
+													formatPercent(metrics.worstPerformer.pnlPercent) :
+													'N/A'
+												}
 														</p>
 														<p className="text-sm text-muted-foreground">
 															{formatVnd(metrics.worstPerformer.pnl * vndRate)}
@@ -565,7 +581,10 @@ export default function DashboardPage() {
 															{item.pnl >= 0 ? '+' : ''}{maskValue(formatVnd(item.pnl * vndRate))}
 														</td>
 														<td className={`text-right py-3 font-medium ${item.pnlPercent >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-															{item.pnlPercent >= 0 ? '+' : ''}{formatPercent(item.pnlPercent)}
+															{!isNaN(item.pnlPercent) && isFinite(item.pnlPercent) ?
+											`${item.pnlPercent >= 0 ? '+' : ''}${formatPercent(item.pnlPercent)}` :
+											'N/A'
+										}
 														</td>
 														<td className={`text-right py-3 ${item.priceChange24h >= 0 ? 'text-green-600' : 'text-red-600'}`}>
 															{item.priceChange24h >= 0 ? '+' : ''}{formatPercent(item.priceChange24h)}
@@ -596,13 +615,13 @@ export default function DashboardPage() {
 														<div className="flex justify-between mb-1">
 															<span className="text-sm font-medium">{asset.asset.symbol}</span>
 															<span className="text-sm text-muted-foreground">
-																{formatVnd(asset.currentValue * vndRate)} ({formatPercent(percentage)})
+																{formatVnd(asset.currentValue * vndRate)} ({!isNaN(percentage) && isFinite(percentage) ? formatPercent(percentage) : '0.00%'})
 															</span>
 														</div>
 														<div className="w-full bg-gray-200 rounded-full h-3">
 															<div
 																className="bg-gradient-to-r from-blue-500 to-blue-600 h-3 rounded-full"
-																style={{ width: `${percentage}%` }}
+																style={{ width: `${!isNaN(percentage) && isFinite(percentage) ? Math.min(percentage, 100) : 0}%` }}
 															/>
 														</div>
 													</div>
@@ -620,8 +639,15 @@ export default function DashboardPage() {
 									<CardContent>
 										<div className="space-y-3">
 											{dashboardData?.assets?.map((asset: any) => {
-												const currentAllocation = (asset.currentValue / totalPortfolioValueUSD) * 100;
-												const targetAllocation = 100 / dashboardData.assets.length;
+												// Calculate allocations safely
+												let currentAllocation = 0;
+												if (totalPortfolioValueUSD > 0) {
+													currentAllocation = (asset.currentValue / totalPortfolioValueUSD) * 100;
+												} else if (dashboardData?.assets?.length > 0) {
+													currentAllocation = 100 / dashboardData.assets.length;
+												}
+												currentAllocation = !isNaN(currentAllocation) && isFinite(currentAllocation) ? currentAllocation : 0;
+												const targetAllocation = dashboardData?.assets?.length > 0 ? 100 / dashboardData.assets.length : 0;
 												const difference = currentAllocation - targetAllocation;
 
 												if (Math.abs(difference) > 5) {
@@ -654,8 +680,15 @@ export default function DashboardPage() {
 												return null;
 											})}
 											{dashboardData?.assets?.every((asset: any) => {
-												const currentAllocation = (asset.currentValue / totalPortfolioValueUSD) * 100;
-												const targetAllocation = 100 / dashboardData.assets.length;
+												// Calculate allocations safely
+												let currentAllocation = 0;
+												if (totalPortfolioValueUSD > 0) {
+													currentAllocation = (asset.currentValue / totalPortfolioValueUSD) * 100;
+												} else if (dashboardData?.assets?.length > 0) {
+													currentAllocation = 100 / dashboardData.assets.length;
+												}
+												currentAllocation = !isNaN(currentAllocation) && isFinite(currentAllocation) ? currentAllocation : 0;
+												const targetAllocation = dashboardData?.assets?.length > 0 ? 100 / dashboardData.assets.length : 0;
 												return Math.abs(currentAllocation - targetAllocation) <= 5;
 											}) && (
 												<div className="text-center py-8 text-muted-foreground">
@@ -753,7 +786,7 @@ export default function DashboardPage() {
 												<div>
 													<p className="font-medium">Return on Investment</p>
 													<p className="text-sm text-muted-foreground mt-1">
-														Your portfolio has generated a {metrics.roi >= 0 ? 'profit' : 'loss'} of {formatPercent(Math.abs(metrics.roi))} since inception
+														Your portfolio has generated a {metrics.roi >= 0 ? 'profit' : 'loss'} of {!isNaN(metrics.roi) && isFinite(metrics.roi) ? formatPercent(Math.abs(metrics.roi)) : '0.00%'} since inception
 													</p>
 													{metrics.roi >= 10 && (
 														<Badge className="mt-2" variant="default">
@@ -893,7 +926,7 @@ export default function DashboardPage() {
 										</div>
 										<div className="text-center p-4 border rounded-lg">
 											<Percent className="h-8 w-8 mx-auto mb-2 text-green-600" />
-											<p className="text-2xl font-bold">{formatPercent(metrics.roi)}</p>
+											<p className="text-2xl font-bold">{!isNaN(metrics.roi) && isFinite(metrics.roi) ? formatPercent(metrics.roi) : '0.00%'}</p>
 											<p className="text-sm text-muted-foreground">Total ROI</p>
 										</div>
 										<div className="text-center p-4 border rounded-lg">

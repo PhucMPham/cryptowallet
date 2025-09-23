@@ -23,7 +23,7 @@ export default function LoginPage() {
 			if (isSignUp) {
 				router.push("/onboarding");
 			} else {
-				router.push("/dashboard");
+				router.push("/crypto");
 			}
 		}, 1000);
 	};

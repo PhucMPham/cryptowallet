@@ -691,6 +691,31 @@ export const cryptoRouter = router({
 		};
 	}),
 
+	// Get recent transactions across all assets
+	getRecentTransactions: publicProcedure
+		.input(z.object({
+			limit: z.number().optional().default(10),
+		}).optional())
+		.query(async ({ input }) => {
+			const limit = input?.limit || 10;
+
+			return await db
+				.select({
+					id: cryptoTransaction.id,
+					type: cryptoTransaction.type,
+					quantity: cryptoTransaction.quantity,
+					pricePerUnit: cryptoTransaction.pricePerUnit,
+					totalAmount: cryptoTransaction.totalAmount,
+					fee: cryptoTransaction.fee,
+					transactionDate: cryptoTransaction.transactionDate,
+					asset: cryptoAsset,
+				})
+				.from(cryptoTransaction)
+				.leftJoin(cryptoAsset, eq(cryptoTransaction.assetId, cryptoAsset.id))
+				.orderBy(desc(cryptoTransaction.transactionDate))
+				.limit(limit);
+		}),
+
 	// Optimized endpoint for dashboard - fetches portfolio and assets in parallel
 	getDashboardData: publicProcedure.query(async ({ ctx }) => {
 		// Execute queries in parallel for better performance

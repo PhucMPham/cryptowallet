@@ -174,7 +174,7 @@ export default function OnboardingPage() {
 			setTimeout(() => {
 				setIsCompleted(true);
 				setTimeout(() => {
-					router.push("/dashboard");
+					router.push("/crypto");
 				}, 2000);
 			}, 1500);
 		} else {

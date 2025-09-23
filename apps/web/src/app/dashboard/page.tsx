@@ -1,108 +1,149 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { api } from "@/utils/api";
 import { formatCurrency, formatVnd, formatPercent, formatCrypto } from "@/utils/formatters";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-	Home,
-	Wallet,
 	TrendingUp,
 	TrendingDown,
+	DollarSign,
 	Activity,
-	Settings,
-	HelpCircle,
-	Plus,
+	Download,
+	PieChart,
 	ArrowUpRight,
 	ArrowDownRight,
-	DollarSign,
-	Bitcoin,
-	BarChart3,
+	AlertCircle,
+	Calculator,
+	Target,
 	Clock,
-	Star,
-	Bell,
-	Search,
-	MoreVertical,
-	ExternalLink,
-	Coins,
-	Repeat,
-	PlusCircle,
+	Hash,
+	Percent,
 	RefreshCw,
 	Eye,
 	EyeOff,
-	Send,
-	ArrowDown,
-	ArrowUp,
-	Grid3x3,
-	User
+	ChevronRight,
+	CheckCircle,
 } from "lucide-react";
-import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { format } from "date-fns";
-import Image from "next/image";
 import { getCryptoLogo } from "@/utils/crypto-logos";
+import Image from "next/image";
 
-// Loading component for skeleton states
+// Performance metrics calculation
+const calculateMetrics = (portfolio: any, assets: any[], p2pSummary: any) => {
+	const totalInvested = portfolio?.totalInvested || 0;
+	const totalValue = portfolio?.totalValue || 0;
+	const totalPnL = portfolio?.totalPnL || 0;
+	const p2pProfit = p2pSummary?.unrealizedPnL || 0;
+
+	// Calculate ROI
+	const roi = totalInvested > 0 ? ((totalValue - totalInvested) / totalInvested) * 100 : 0;
+
+	// Calculate best and worst performers
+	const sortedAssets = [...(assets || [])].sort((a, b) => (b.pnlPercent || 0) - (a.pnlPercent || 0));
+	const bestPerformer = sortedAssets[0];
+	const worstPerformer = sortedAssets[sortedAssets.length - 1];
+
+	// Calculate diversification score (0-100)
+	const diversificationScore = calculateDiversificationScore(assets);
+
+	// Calculate risk metrics
+	const volatility = calculateVolatility(assets);
+
+	return {
+		roi,
+		bestPerformer,
+		worstPerformer,
+		diversificationScore,
+		volatility,
+		totalPnLWithP2P: totalPnL + p2pProfit,
+	};
+};
+
+const calculateDiversificationScore = (assets: any[]) => {
+	if (!assets || assets.length === 0) return 0;
+	if (assets.length === 1) return 10;
+
+	// Calculate portfolio concentration
+	const totalValue = assets.reduce((sum, asset) => sum + (asset.currentValue || 0), 0);
+	const weights = assets.map(asset => (asset.currentValue || 0) / totalValue);
+
+	// Herfindahl-Hirschman Index (HHI) - lower is more diversified
+	const hhi = weights.reduce((sum, weight) => sum + Math.pow(weight, 2), 0);
+
+	// Convert to 0-100 score (inverse of HHI)
+	const score = Math.max(0, Math.min(100, (1 - hhi) * 100));
+	return Math.round(score);
+};
+
+const calculateVolatility = (assets: any[]) => {
+	// Check if assets is undefined or empty
+	if (!assets || assets.length === 0) return "Low";
+
+	// Simplified volatility based on 24h price changes
+	const changes = assets.map(a => Math.abs(a.priceChange24h || 0));
+	const avgChange = changes.length > 0 ? changes.reduce((sum, c) => sum + c, 0) / changes.length : 0;
+
+	if (avgChange < 2) return "Low";
+	if (avgChange < 5) return "Medium";
+	if (avgChange < 10) return "High";
+	return "Very High";
+};
+
+// Loading skeleton
 const DashboardSkeleton = () => (
-	<>
-		<Skeleton className="h-32 w-full" />
-		<div className="grid grid-cols-4 gap-4">
+	<div className="space-y-6">
+		<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
 			{[...Array(4)].map((_, i) => (
-				<Skeleton key={i} className="h-24" />
+				<Skeleton key={i} className="h-32" />
 			))}
 		</div>
 		<Skeleton className="h-96" />
-	</>
+		<div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+			<Skeleton className="h-64" />
+			<Skeleton className="h-64" />
+		</div>
+	</div>
 );
 
 export default function DashboardPage() {
-	const router = useRouter();
 	const [refreshing, setRefreshing] = useState(false);
 	const [showBalances, setShowBalances] = useState(true);
+	const [activeTab, setActiveTab] = useState("overview");
 
-	// Fetch crypto portfolio data
-	const {
-		data: dashboardData,
-		isLoading: cryptoLoading,
-		refetch: refetchCrypto
-	} = api.crypto.getDashboardData.useQuery(undefined, {
-		refetchInterval: 60000,
-		staleTime: 30000,
-	});
+	// Fetch all data
+	const { data: dashboardData, isLoading: cryptoLoading, refetch: refetchCrypto } =
+		api.crypto.getDashboardData.useQuery(undefined, {
+			refetchInterval: 60000,
+			staleTime: 30000,
+		});
 
-	// Fetch P2P transactions data
-	const {
-		data: p2pTransactions,
-		isLoading: p2pLoading
-	} = api.p2p.getTransactions.useQuery({
-		crypto: "USDT",
-		fiatCurrency: "VND",
-	}, {
-		refetchInterval: 60000,
-	});
+	const { data: p2pSummary, isLoading: p2pLoading } =
+		api.p2p.getPortfolioSummary.useQuery({
+			crypto: "USDT",
+			fiatCurrency: "VND",
+		}, {
+			refetchInterval: 60000,
+		});
 
-	// Fetch recent crypto transactions
-	const { data: recentTransactions } = api.crypto.getTransactionsByAsset.useQuery(
-		{ limit: 10 },
-		{ enabled: !!dashboardData }
-	);
+	const { data: recentTransactions } =
+		api.crypto.getRecentTransactions.useQuery(
+			{ limit: 20 },
+			{ enabled: !!dashboardData }
+		);
 
-	// Calculate total portfolio value
+	// Calculate metrics
 	const vndRate = dashboardData?.vndRate?.usdToVnd || 25000;
-	const totalCryptoValue = dashboardData?.portfolio?.totalValue || 0;
-	const totalP2PValue = p2pTransactions?.summary?.totalUsdtValue || 0;
-	const totalPortfolioValueUSD = totalCryptoValue + totalP2PValue;
-	const totalPortfolioValueVND = totalPortfolioValueUSD * vndRate;
+	const metrics = calculateMetrics(dashboardData?.portfolio, dashboardData?.assets, p2pSummary?.summary);
 
-	// Calculate P&L
-	const totalPnL = dashboardData?.portfolio?.totalPnL || 0;
-	const totalPnLPercent = dashboardData?.portfolio?.totalPnLPercent || 0;
-	const p2pProfit = p2pTransactions?.summary?.totalProfit || 0;
-	const totalPnLVND = (totalPnL + p2pProfit) * vndRate;
+	const totalCryptoValue = dashboardData?.portfolio?.totalValue || 0;
+	const totalP2PValue = p2pSummary?.summary?.currentValue || 0;
+	const totalPortfolioValue = totalCryptoValue + totalP2PValue;
+	const totalInvested = dashboardData?.portfolio?.totalInvested || 0;
 
 	// Handle refresh
 	const handleRefresh = async () => {
@@ -111,447 +152,335 @@ export default function DashboardPage() {
 		setTimeout(() => setRefreshing(false), 1000);
 	};
 
-	const formatDate = (dateString: string) => {
-		try {
-			return format(new Date(dateString), "MMM dd, HH:mm");
-		} catch {
-			return dateString;
-		}
+	// Export report function
+	const exportReport = () => {
+		const report = {
+			generatedAt: new Date().toISOString(),
+			portfolio: {
+				totalValue: totalPortfolioValue,
+				totalInvested,
+				totalPnL: metrics.totalPnLWithP2P,
+				roi: metrics.roi,
+				assets: dashboardData?.assets,
+			},
+			p2p: p2pSummary?.summary,
+			metrics: {
+				diversificationScore: metrics.diversificationScore,
+				volatility: metrics.volatility,
+			},
+		};
+
+		const blob = new Blob([JSON.stringify(report, null, 2)], { type: "application/json" });
+		const url = URL.createObjectURL(blob);
+		const a = document.createElement("a");
+		a.href = url;
+		a.download = `portfolio-report-${format(new Date(), "yyyy-MM-dd")}.json`;
+		a.click();
 	};
 
 	const isLoading = cryptoLoading || p2pLoading;
 
-	// Mask balance display
-	const maskValue = (value: string) => {
-		if (showBalances) return value;
-		return "••••••••";
-	};
+	// Mask sensitive values
+	const maskValue = (value: string) => showBalances ? value : "••••••••";
 
 	return (
-		<div className="min-h-screen bg-white">
-			{/* Clean Sidebar */}
-			<div className="fixed left-0 top-0 h-full w-64 bg-white border-r border-gray-100 z-10">
-				<div className="p-6">
-					<div className="flex items-center gap-3">
-						<div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
-							<div className="w-4 h-4 bg-white rounded-full" />
-						</div>
-						<span className="text-lg font-semibold">Coinbase</span>
-					</div>
+		<div className="container mx-auto px-4 py-6 max-w-7xl">
+			{/* Header */}
+			<div className="flex items-center justify-between mb-6">
+				<div>
+					<h1 className="text-3xl font-bold">Portfolio Dashboard</h1>
+					<p className="text-muted-foreground mt-1">
+						Comprehensive analysis and reporting of your investments
+					</p>
 				</div>
-
-				<nav className="px-4">
-					<ul className="space-y-1">
-						<li>
-							<Link
-								href="/dashboard"
-								className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-gray-100 text-gray-900 font-medium"
-							>
-								<Home className="h-5 w-5" />
-								Home
-							</Link>
-						</li>
-						<li>
-							<Link
-								href="/crypto"
-								className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-50 text-gray-600"
-							>
-								<Grid3x3 className="h-5 w-5" />
-								My assets
-							</Link>
-						</li>
-						<li>
-							<Link
-								href="/transactions"
-								className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-50 text-gray-600"
-							>
-								<Activity className="h-5 w-5" />
-								Transactions
-							</Link>
-						</li>
-						<li>
-							<Link
-								href="/explore"
-								className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-50 text-gray-600"
-							>
-								<Search className="h-5 w-5" />
-								Explore
-							</Link>
-						</li>
-						<li>
-							<Link
-								href="/p2p"
-								className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-50 text-gray-600"
-							>
-								<Repeat className="h-5 w-5" />
-								P2P Trading
-							</Link>
-						</li>
-						<li>
-							<Link
-								href="/rewards"
-								className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-50 text-gray-600"
-							>
-								<Star className="h-5 w-5" />
-								Learning rewards
-							</Link>
-						</li>
-					</ul>
-
-					<div className="mt-8 pt-8 border-t border-gray-100">
-						<ul className="space-y-1">
-							<li>
-								<Link
-									href="/settings"
-									className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-50 text-gray-600"
-								>
-									<Settings className="h-5 w-5" />
-									Settings
-								</Link>
-							</li>
-							<li>
-								<Link
-									href="/help"
-									className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-50 text-gray-600"
-								>
-									<HelpCircle className="h-5 w-5" />
-									More
-								</Link>
-							</li>
-						</ul>
-					</div>
-				</nav>
+				<div className="flex items-center gap-3">
+					<Button
+						variant="outline"
+						size="icon"
+						onClick={() => setShowBalances(!showBalances)}
+					>
+						{showBalances ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+					</Button>
+					<Button
+						variant="outline"
+						onClick={handleRefresh}
+						disabled={refreshing}
+					>
+						<RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
+						Refresh
+					</Button>
+					<Button onClick={exportReport}>
+						<Download className="h-4 w-4 mr-2" />
+						Export Report
+					</Button>
+				</div>
 			</div>
 
-			{/* Main content */}
-			<div className="ml-64">
-				{/* Clean Top Header */}
-				<div className="border-b border-gray-100">
-					<div className="px-8 py-6">
-						<div className="flex items-center justify-between">
-							<h1 className="text-3xl font-bold text-gray-900">Home</h1>
-							<div className="flex items-center gap-3">
-								<div className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 rounded-lg">
-									<Search className="h-4 w-4 text-gray-500" />
-									<input
-										type="text"
-										placeholder="Search for an asset"
-										className="bg-transparent outline-none text-sm w-64"
-									/>
+			{isLoading ? (
+				<DashboardSkeleton />
+			) : (
+				<>
+					{/* Key Metrics Cards */}
+					<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+						<Card>
+							<CardHeader className="pb-3">
+								<CardTitle className="text-sm font-medium text-muted-foreground">
+									Total Portfolio Value
+								</CardTitle>
+							</CardHeader>
+							<CardContent>
+								<div className="text-2xl font-bold">
+									{maskValue(formatVnd(totalPortfolioValue * vndRate))}
 								</div>
-								<Button
-									variant="ghost"
-									size="icon"
-									onClick={() => setShowBalances(!showBalances)}
-									className="hover:bg-gray-100"
+								<p className="text-xs text-muted-foreground mt-1">
+									≈ {maskValue(formatCurrency(totalPortfolioValue))}
+								</p>
+								{dashboardData?.vndRate && (
+									<Badge variant="outline" className="mt-2 text-xs">
+										1 USD = {formatVnd(vndRate)}
+									</Badge>
+								)}
+							</CardContent>
+						</Card>
+
+						<Card>
+							<CardHeader className="pb-3">
+								<CardTitle className="text-sm font-medium text-muted-foreground">
+									Total P&L
+								</CardTitle>
+							</CardHeader>
+							<CardContent>
+								<div className={`text-2xl font-bold ${metrics.totalPnLWithP2P >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+									{metrics.totalPnLWithP2P >= 0 ? '+' : ''}{maskValue(formatVnd(metrics.totalPnLWithP2P * vndRate))}
+								</div>
+								<div className="flex items-center gap-2 mt-1">
+									{metrics.totalPnLWithP2P >= 0 ? (
+										<TrendingUp className="h-4 w-4 text-green-600" />
+									) : (
+										<TrendingDown className="h-4 w-4 text-red-600" />
+									)}
+									<span className={`text-sm font-medium ${metrics.totalPnLWithP2P >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+										{formatPercent(Math.abs(metrics.roi))}
+									</span>
+								</div>
+							</CardContent>
+						</Card>
+
+						<Card>
+							<CardHeader className="pb-3">
+								<CardTitle className="text-sm font-medium text-muted-foreground">
+									Diversification Score
+								</CardTitle>
+							</CardHeader>
+							<CardContent>
+								<div className="text-2xl font-bold">{metrics.diversificationScore}/100</div>
+								<div className="mt-2">
+									<div className="w-full bg-gray-200 rounded-full h-2">
+										<div
+											className={`h-2 rounded-full ${
+												metrics.diversificationScore > 70 ? 'bg-green-600' :
+												metrics.diversificationScore > 40 ? 'bg-yellow-600' : 'bg-red-600'
+											}`}
+											style={{ width: `${metrics.diversificationScore}%` }}
+										/>
+									</div>
+								</div>
+								<p className="text-xs text-muted-foreground mt-1">
+									{metrics.diversificationScore > 70 ? 'Well Diversified' :
+									 metrics.diversificationScore > 40 ? 'Moderate' : 'Concentrated'}
+								</p>
+							</CardContent>
+						</Card>
+
+						<Card>
+							<CardHeader className="pb-3">
+								<CardTitle className="text-sm font-medium text-muted-foreground">
+									Risk Level
+								</CardTitle>
+							</CardHeader>
+							<CardContent>
+								<div className="text-2xl font-bold">{metrics.volatility}</div>
+								<p className="text-xs text-muted-foreground mt-1">
+									Based on 24h price changes
+								</p>
+								<Badge
+									variant={metrics.volatility === "Low" ? "default" :
+									        metrics.volatility === "Medium" ? "secondary" : "destructive"}
+									className="mt-2"
 								>
-									{showBalances ? <Eye className="h-5 w-5" /> : <EyeOff className="h-5 w-5" />}
-								</Button>
-								<Button
-									variant="ghost"
-									size="icon"
-									className="hover:bg-gray-100"
-								>
-									<Bell className="h-5 w-5" />
-								</Button>
-								<Button
-									variant="ghost"
-									size="icon"
-									className="hover:bg-gray-100"
-								>
-									<User className="h-5 w-5" />
-								</Button>
-							</div>
-						</div>
+									{metrics.volatility === "Low" ? "Conservative" :
+									 metrics.volatility === "Medium" ? "Balanced" : "Aggressive"}
+								</Badge>
+							</CardContent>
+						</Card>
 					</div>
-				</div>
 
-				<div className="p-8">
-					{isLoading ? (
-						<DashboardSkeleton />
-					) : (
-						<div className="grid grid-cols-3 gap-8">
-							{/* Left Column - Main Content */}
-							<div className="col-span-2 space-y-6">
-								{/* Portfolio Value Card */}
-								<div className="bg-white rounded-xl p-6">
-									<div className="flex items-center justify-between mb-8">
-										<div>
-											<h2 className="text-6xl font-bold text-gray-900">
-												{maskValue(formatVnd(totalPortfolioValueVND))}
-											</h2>
-											<div className="flex items-center gap-4 mt-2">
-												<span className="text-gray-500">
-													≈ {maskValue(formatCurrency(totalPortfolioValueUSD))}
-												</span>
-												{dashboardData?.vndRate && (
-													<Badge variant="outline" className="text-xs">
-														1 USD = {formatVnd(dashboardData.vndRate.usdToVnd)}
-													</Badge>
-												)}
-											</div>
-										</div>
-										<div className="bg-white rounded-full w-32 h-32 border-8 border-gray-100">
-											{/* Placeholder for chart */}
-											<div className="w-full h-full rounded-full bg-gradient-to-br from-blue-400 to-purple-400" />
-										</div>
-									</div>
+					{/* Main Content Tabs */}
+					<Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+						<TabsList>
+							<TabsTrigger value="overview">Overview</TabsTrigger>
+							<TabsTrigger value="performance">Performance</TabsTrigger>
+							<TabsTrigger value="allocation">Allocation</TabsTrigger>
+							<TabsTrigger value="transactions">Transactions</TabsTrigger>
+							<TabsTrigger value="insights">Insights</TabsTrigger>
+						</TabsList>
 
-									{/* Quick Actions */}
-									<div className="grid grid-cols-4 gap-3">
-										<Button
-											className="bg-blue-600 hover:bg-blue-700 text-white h-12"
-											onClick={() => router.push("/crypto")}
-										>
-											Buy
-										</Button>
-										<Button
-											variant="outline"
-											className="h-12 border-gray-200"
-											onClick={() => router.push("/crypto")}
-										>
-											Sell
-										</Button>
-										<Button
-											variant="outline"
-											className="h-12 border-gray-200"
-										>
-											Convert
-										</Button>
-										<Button
-											variant="ghost"
-											size="icon"
-											onClick={handleRefresh}
-											disabled={refreshing}
-											className="h-12"
-										>
-											<MoreVertical className={`h-5 w-5 ${refreshing ? 'animate-spin' : ''}`} />
-										</Button>
-									</div>
-								</div>
-
-								{/* Balance & Staking Cards */}
-								<div className="grid grid-cols-2 gap-4">
-									<div className="bg-white border border-gray-100 rounded-xl p-6 hover:shadow-sm transition-shadow cursor-pointer">
-										<div className="flex items-center justify-between mb-2">
-											<div className="flex items-center gap-2">
-												<Wallet className="h-5 w-5 text-gray-400" />
-												<span className="text-sm text-gray-600">Crypto</span>
-											</div>
-											<ArrowUpRight className="h-4 w-4 text-gray-400" />
-										</div>
-										<div className="space-y-1">
-											<p className="text-sm text-gray-500">Balance</p>
-											<p className="text-2xl font-semibold">
-												{maskValue(formatVnd(totalCryptoValue * vndRate))}
-											</p>
-										</div>
-									</div>
-
-									<div className="bg-white border border-gray-100 rounded-xl p-6 hover:shadow-sm transition-shadow cursor-pointer">
-										<div className="flex items-center justify-between mb-2">
-											<div className="flex items-center gap-2">
-												<TrendingUp className="h-5 w-5 text-gray-400" />
-												<span className="text-sm text-gray-600">Staking</span>
-											</div>
-											<ArrowUpRight className="h-4 w-4 text-gray-400" />
-										</div>
-										<div className="space-y-1">
-											<p className="text-sm text-gray-500">Earn up to 5.75% APY</p>
-											<p className="text-2xl font-semibold">Earn</p>
-										</div>
-									</div>
-								</div>
-
-								{/* For you section */}
-								<div>
-									<div className="flex items-center justify-between mb-4">
-										<h3 className="text-lg font-semibold">For you</h3>
-										<div className="flex gap-2">
-											<Button variant="ghost" size="icon" className="h-8 w-8">
-												<ArrowDown className="h-4 w-4 rotate-90" />
-											</Button>
-											<Button variant="ghost" size="icon" className="h-8 w-8">
-												<ArrowUp className="h-4 w-4 rotate-90" />
-											</Button>
-										</div>
-									</div>
-
-									<div className="grid grid-cols-2 gap-4">
-										<div className="bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl p-6 text-white">
-											<h4 className="font-semibold mb-2">Trade perpetuals now</h4>
-											<p className="text-sm opacity-90">
-												Fees as low as 0.00% for a limited time
-											</p>
-										</div>
-										<div className="bg-gradient-to-r from-purple-500 to-purple-600 rounded-xl p-6 text-white">
-											<h4 className="font-semibold mb-2">Transfer USD with SWIFT</h4>
-											<p className="text-sm opacity-90">
-												Send USD to and from your bank via international wires
-											</p>
-										</div>
-									</div>
-								</div>
-
-								{/* Prices Section */}
-								<div>
-									<div className="flex items-center justify-between mb-4">
-										<h3 className="text-lg font-semibold">Prices</h3>
-										<Link href="/crypto" className="text-sm text-blue-600 hover:underline">
-											Watchlist →
-										</Link>
-									</div>
-
-									<div className="bg-white border border-gray-100 rounded-xl">
-										{dashboardData?.assets?.slice(0, 5).map((item, index) => {
-											const currentValue = item.currentValue || 0;
-											const currentPrice = item.currentPrice || 0;
-											const pnl = item.pnl || 0;
-											const pnlPercent = item.pnlPercent || 0;
-											const change24h = item.priceChange24h || 0;
-
-											return (
-												<div
-													key={item.asset.id}
-													className={`flex items-center justify-between p-4 hover:bg-gray-50 cursor-pointer transition-colors ${
-														index !== dashboardData.assets.length - 1 && index < 4 ? 'border-b border-gray-100' : ''
-													}`}
-													onClick={() => router.push(`/crypto/${item.asset.id}`)}
-												>
-													<div className="flex items-center gap-3">
-														<div className="relative w-10 h-10">
-															<Image
-																src={getCryptoLogo(item.asset.symbol)}
-																alt={item.asset.symbol}
-																width={40}
-																height={40}
-																className="rounded-full"
-																onError={(e) => {
-																	e.currentTarget.src = `https://ui-avatars.com/api/?name=${item.asset.symbol}&background=3b82f6&color=fff`;
-																}}
+						{/* Overview Tab */}
+						<TabsContent value="overview" className="space-y-4">
+							<div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+								{/* Portfolio Composition */}
+								<Card>
+									<CardHeader>
+										<CardTitle>Portfolio Composition</CardTitle>
+										<CardDescription>Asset allocation by value</CardDescription>
+									</CardHeader>
+									<CardContent>
+										<div className="space-y-4">
+											{dashboardData?.assets?.map((asset: any) => {
+												const percentage = (asset.currentValue / totalCryptoValue) * 100;
+												return (
+													<div key={asset.asset.id} className="space-y-2">
+														<div className="flex items-center justify-between">
+															<div className="flex items-center gap-2">
+																<Image
+																	src={getCryptoLogo(asset.asset.symbol)}
+																	alt={asset.asset.symbol}
+																	width={24}
+																	height={24}
+																	className="rounded-full"
+																/>
+																<span className="font-medium">{asset.asset.symbol}</span>
+															</div>
+															<span className="text-sm text-muted-foreground">
+																{formatPercent(percentage)}
+															</span>
+														</div>
+														<div className="w-full bg-gray-200 rounded-full h-2">
+															<div
+																className="bg-blue-600 h-2 rounded-full"
+																style={{ width: `${percentage}%` }}
 															/>
 														</div>
+													</div>
+												);
+											})}
+											{p2pSummary?.summary && p2pSummary.summary.currentValue > 0 && (
+												<div className="space-y-2 pt-2 border-t">
+													<div className="flex items-center justify-between">
+														<div className="flex items-center gap-2">
+															<DollarSign className="h-6 w-6" />
+															<span className="font-medium">P2P USDT</span>
+														</div>
+														<span className="text-sm text-muted-foreground">
+															{formatPercent((totalP2PValue / totalPortfolioValue) * 100)}
+														</span>
+													</div>
+													<div className="w-full bg-gray-200 rounded-full h-2">
+														<div
+															className="bg-green-600 h-2 rounded-full"
+															style={{ width: `${(totalP2PValue / totalPortfolioValue) * 100}%` }}
+														/>
+													</div>
+												</div>
+											)}
+										</div>
+									</CardContent>
+								</Card>
+
+								{/* Top Performers */}
+								<Card>
+									<CardHeader>
+										<CardTitle>Performance Highlights</CardTitle>
+										<CardDescription>Best and worst performing assets</CardDescription>
+									</CardHeader>
+									<CardContent className="space-y-4">
+										{metrics.bestPerformer && (
+											<div className="p-4 border rounded-lg bg-green-50 border-green-200">
+												<div className="flex items-center justify-between">
+													<div className="flex items-center gap-3">
+														<TrendingUp className="h-5 w-5 text-green-600" />
 														<div>
-															<p className="font-medium">{item.asset.name}</p>
-															<p className="text-sm text-gray-500">{item.asset.symbol}</p>
+															<p className="font-medium">Best Performer</p>
+															<p className="text-sm text-muted-foreground">
+																{metrics.bestPerformer.asset.name}
+															</p>
 														</div>
 													</div>
-													<div className="text-center">
-														<p className="font-medium">
-															{maskValue(formatVnd(currentPrice * vndRate))}
-														</p>
-														<p className="text-sm text-gray-500">
-															{maskValue(formatCurrency(currentPrice))}
-														</p>
-													</div>
 													<div className="text-right">
-														<p className={`font-medium ${change24h >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-															{change24h >= 0 ? '↑' : '↓'} {formatPercent(Math.abs(change24h))}
+														<p className="font-bold text-green-600">
+															+{formatPercent(metrics.bestPerformer.pnlPercent)}
 														</p>
-														<p className="text-sm text-gray-500">
-															{formatCrypto(item.totalQuantity)} {item.asset.symbol}
+														<p className="text-sm text-muted-foreground">
+															+{formatVnd(metrics.bestPerformer.pnl * vndRate)}
 														</p>
 													</div>
-													<Button
-														className="bg-blue-600 hover:bg-blue-700 text-white px-6"
-														onClick={(e) => {
-															e.stopPropagation();
-															router.push("/crypto");
-														}}
-													>
-														Buy
-													</Button>
 												</div>
-											);
-										})}
-										{(!dashboardData?.assets || dashboardData.assets.length === 0) && (
-											<div className="text-center py-12">
-												<Coins className="h-12 w-12 mx-auto mb-3 text-gray-300" />
-												<p className="text-gray-500">No assets yet</p>
-												<Button
-													className="mt-3"
-													onClick={() => router.push("/crypto")}
-												>
-													Add your first asset
-												</Button>
 											</div>
 										)}
-									</div>
-								</div>
+
+										{metrics.worstPerformer && metrics.worstPerformer.pnl < 0 && (
+											<div className="p-4 border rounded-lg bg-red-50 border-red-200">
+												<div className="flex items-center justify-between">
+													<div className="flex items-center gap-3">
+														<TrendingDown className="h-5 w-5 text-red-600" />
+														<div>
+															<p className="font-medium">Worst Performer</p>
+															<p className="text-sm text-muted-foreground">
+																{metrics.worstPerformer.asset.name}
+															</p>
+														</div>
+													</div>
+													<div className="text-right">
+														<p className="font-bold text-red-600">
+															{formatPercent(metrics.worstPerformer.pnlPercent)}
+														</p>
+														<p className="text-sm text-muted-foreground">
+															{formatVnd(metrics.worstPerformer.pnl * vndRate)}
+														</p>
+													</div>
+												</div>
+											</div>
+										)}
+
+										{/* Investment Summary */}
+										<div className="pt-4 border-t space-y-2">
+											<div className="flex justify-between">
+												<span className="text-sm text-muted-foreground">Total Invested</span>
+												<span className="font-medium">
+													{maskValue(formatVnd(totalInvested * vndRate))}
+												</span>
+											</div>
+											<div className="flex justify-between">
+												<span className="text-sm text-muted-foreground">Current Value</span>
+												<span className="font-medium">
+													{maskValue(formatVnd(totalPortfolioValue * vndRate))}
+												</span>
+											</div>
+											<div className="flex justify-between">
+												<span className="text-sm text-muted-foreground">Total Return</span>
+												<span className={`font-medium ${metrics.totalPnLWithP2P >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+													{metrics.totalPnLWithP2P >= 0 ? '+' : ''}{maskValue(formatVnd(metrics.totalPnLWithP2P * vndRate))}
+												</span>
+											</div>
+										</div>
+									</CardContent>
+								</Card>
 							</div>
 
-							{/* Right Column - Sidebar */}
-							<div className="space-y-6">
-								{/* P&L Summary */}
-								<div className="bg-white border border-gray-100 rounded-xl p-6">
-									<h3 className="font-semibold mb-4">Today's P&L</h3>
+							{/* Recent Activity */}
+							<Card>
+								<CardHeader>
+									<CardTitle>Recent Activity</CardTitle>
+									<CardDescription>Latest transactions across all assets</CardDescription>
+								</CardHeader>
+								<CardContent>
 									<div className="space-y-3">
-										<div>
-											<p className="text-sm text-gray-500 mb-1">Total Change</p>
-											<p className={`text-2xl font-bold ${(totalPnL + p2pProfit) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-												{(totalPnL + p2pProfit) >= 0 ? '+' : ''}{maskValue(formatVnd(totalPnLVND))}
-											</p>
-											<p className="text-sm text-gray-500">
-												{formatPercent(totalPnLPercent)}
-											</p>
-										</div>
-
-										<div className="pt-3 border-t border-gray-100">
-											<div className="flex justify-between items-center mb-2">
-												<span className="text-sm text-gray-600">Crypto P&L</span>
-												<span className={`text-sm font-medium ${totalPnL >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-													{maskValue(formatVnd(totalPnL * vndRate))}
-												</span>
-											</div>
-											<div className="flex justify-between items-center">
-												<span className="text-sm text-gray-600">P2P Profit</span>
-												<span className={`text-sm font-medium ${p2pProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-													{maskValue(formatVnd(p2pProfit * vndRate))}
-												</span>
-											</div>
-										</div>
-									</div>
-								</div>
-
-								{/* Quick Stats */}
-								<div className="bg-white border border-gray-100 rounded-xl p-6">
-									<h3 className="font-semibold mb-4">Portfolio Stats</h3>
-									<div className="space-y-3">
-										<div className="flex justify-between">
-											<span className="text-sm text-gray-600">Assets</span>
-											<span className="text-sm font-medium">{dashboardData?.assets?.length || 0}</span>
-										</div>
-										<div className="flex justify-between">
-											<span className="text-sm text-gray-600">P2P Trades</span>
-											<span className="text-sm font-medium">{p2pTransactions?.transactions?.length || 0}</span>
-										</div>
-										<div className="flex justify-between">
-											<span className="text-sm text-gray-600">Total Invested</span>
-											<span className="text-sm font-medium">
-												{maskValue(formatVnd((dashboardData?.portfolio?.totalInvested || 0) * vndRate))}
-											</span>
-										</div>
-										<div className="flex justify-between">
-											<span className="text-sm text-gray-600">Current Value</span>
-											<span className="text-sm font-medium">
-												{maskValue(formatVnd((dashboardData?.portfolio?.totalValue || 0) * vndRate))}
-											</span>
-										</div>
-									</div>
-								</div>
-
-								{/* Recent Activity */}
-								<div className="bg-white border border-gray-100 rounded-xl p-6">
-									<h3 className="font-semibold mb-4">Recent Activity</h3>
-									<div className="space-y-3">
-										{recentTransactions?.slice(0, 4).map((tx: any) => (
-											<div key={tx.id} className="flex items-center justify-between">
+										{recentTransactions?.slice(0, 5).map((tx: any) => (
+											<div key={tx.id} className="flex items-center justify-between py-2">
 												<div className="flex items-center gap-3">
-													<div
-														className={`w-8 h-8 rounded-full flex items-center justify-center ${
-															tx.type === "buy" ? "bg-green-100" : "bg-red-100"
-														}`}
-													>
+													<div className={`p-2 rounded-full ${
+														tx.type === "buy" ? "bg-green-100" : "bg-red-100"
+													}`}>
 														{tx.type === "buy" ? (
 															<ArrowDownRight className="h-4 w-4 text-green-600" />
 														) : (
@@ -559,39 +488,481 @@ export default function DashboardPage() {
 														)}
 													</div>
 													<div>
-														<p className="text-sm font-medium">
-															{tx.type === "buy" ? "Bought" : "Sold"} {tx.asset?.symbol}
+														<p className="font-medium">
+															{tx.type === "buy" ? "Bought" : "Sold"} {formatCrypto(tx.quantity)} {tx.asset?.symbol}
 														</p>
-														<p className="text-xs text-gray-500">
-															{formatDate(tx.transactionDate)}
+														<p className="text-sm text-muted-foreground">
+															{format(new Date(tx.transactionDate), "MMM dd, yyyy HH:mm")}
 														</p>
 													</div>
 												</div>
-												<p className="text-sm font-medium">
-													{maskValue(formatVnd(tx.totalAmount * vndRate))}
-												</p>
+												<div className="text-right">
+													<p className="font-medium">
+														{maskValue(formatVnd(tx.totalAmount * vndRate))}
+													</p>
+													<p className="text-sm text-muted-foreground">
+														@ {formatVnd(tx.pricePerUnit * vndRate)}
+													</p>
+												</div>
 											</div>
 										))}
-										{(!recentTransactions || recentTransactions.length === 0) && (
-											<p className="text-center text-sm text-gray-500 py-4">
-												No recent transactions
-											</p>
-										)}
 									</div>
-									{recentTransactions && recentTransactions.length > 0 && (
-										<Link
-											href="/transactions"
-											className="block text-center text-sm text-blue-600 hover:underline mt-4 pt-4 border-t border-gray-100"
-										>
+									{recentTransactions && recentTransactions.length > 5 && (
+										<div className="text-center text-sm text-blue-600 hover:underline mt-4 pt-4 border-t">
 											View all transactions
-										</Link>
+										</div>
 									)}
-								</div>
+								</CardContent>
+							</Card>
+						</TabsContent>
+
+						{/* Performance Tab */}
+						<TabsContent value="performance" className="space-y-4">
+							<Card>
+								<CardHeader>
+									<CardTitle>Performance Analysis</CardTitle>
+									<CardDescription>Detailed performance metrics for each asset</CardDescription>
+								</CardHeader>
+								<CardContent>
+									<div className="overflow-x-auto">
+										<table className="w-full">
+											<thead className="border-b">
+												<tr>
+													<th className="text-left py-2">Asset</th>
+													<th className="text-right py-2">Holdings</th>
+													<th className="text-right py-2">Avg Buy Price</th>
+													<th className="text-right py-2">Current Price</th>
+													<th className="text-right py-2">Current Value</th>
+													<th className="text-right py-2">P&L</th>
+													<th className="text-right py-2">P&L %</th>
+													<th className="text-right py-2">24h Change</th>
+												</tr>
+											</thead>
+											<tbody>
+												{dashboardData?.assets?.map((item: any) => (
+													<tr key={item.asset.id} className="border-b hover:bg-gray-50">
+														<td className="py-3">
+															<div className="flex items-center gap-2">
+																<Image
+																	src={getCryptoLogo(item.asset.symbol)}
+																	alt={item.asset.symbol}
+																	width={32}
+																	height={32}
+																	className="rounded-full"
+																/>
+																<div>
+																	<p className="font-medium">{item.asset.symbol}</p>
+																	<p className="text-sm text-muted-foreground">{item.asset.name}</p>
+																</div>
+															</div>
+														</td>
+														<td className="text-right py-3">
+															{formatCrypto(item.totalQuantity)}
+														</td>
+														<td className="text-right py-3">
+															{maskValue(formatVnd(item.avgBuyPrice * vndRate))}
+														</td>
+														<td className="text-right py-3">
+															{maskValue(formatVnd(item.currentPrice * vndRate))}
+														</td>
+														<td className="text-right py-3">
+															{maskValue(formatVnd(item.currentValue * vndRate))}
+														</td>
+														<td className={`text-right py-3 font-medium ${item.pnl >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+															{item.pnl >= 0 ? '+' : ''}{maskValue(formatVnd(item.pnl * vndRate))}
+														</td>
+														<td className={`text-right py-3 font-medium ${item.pnlPercent >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+															{item.pnlPercent >= 0 ? '+' : ''}{formatPercent(item.pnlPercent)}
+														</td>
+														<td className={`text-right py-3 ${item.priceChange24h >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+															{item.priceChange24h >= 0 ? '+' : ''}{formatPercent(item.priceChange24h)}
+														</td>
+													</tr>
+												))}
+												{p2pSummary?.summary && (
+													<tr className="border-b hover:bg-gray-50 font-medium">
+														<td className="py-3">
+															<div className="flex items-center gap-2">
+																<DollarSign className="h-8 w-8" />
+																<div>
+																	<p className="font-medium">P2P USDT</p>
+																	<p className="text-sm text-muted-foreground">Trading</p>
+																</div>
+															</div>
+														</td>
+														<td className="text-right py-3">
+															{formatCrypto(p2pSummary.summary.currentHoldings)} USDT
+														</td>
+														<td className="text-right py-3">
+															{maskValue(formatVnd(p2pSummary.summary.weightedAverageRate))}
+														</td>
+														<td className="text-right py-3">
+															{maskValue(formatVnd(p2pSummary.summary.currentMarketRate))}
+														</td>
+														<td className="text-right py-3">
+															{maskValue(formatVnd(p2pSummary.summary.currentValue))}
+														</td>
+														<td className={`text-right py-3 font-medium ${p2pSummary.summary.unrealizedPnL >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+															{p2pSummary.summary.unrealizedPnL >= 0 ? '+' : ''}{maskValue(formatVnd(p2pSummary.summary.unrealizedPnL))}
+														</td>
+														<td className={`text-right py-3 font-medium ${p2pSummary.summary.unrealizedPnLPercent >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+															{p2pSummary.summary.unrealizedPnLPercent >= 0 ? '+' : ''}{formatPercent(p2pSummary.summary.unrealizedPnLPercent)}
+														</td>
+														<td className="text-right py-3">-</td>
+													</tr>
+												)}
+											</tbody>
+										</table>
+									</div>
+								</CardContent>
+							</Card>
+						</TabsContent>
+
+						{/* Allocation Tab */}
+						<TabsContent value="allocation" className="space-y-4">
+							<div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+								<Card>
+									<CardHeader>
+										<CardTitle>Asset Allocation</CardTitle>
+										<CardDescription>Portfolio distribution by asset</CardDescription>
+									</CardHeader>
+									<CardContent>
+										<div className="space-y-4">
+											{dashboardData?.assets?.map((asset: any) => {
+												const percentage = (asset.currentValue / totalPortfolioValue) * 100;
+												return (
+													<div key={asset.asset.id}>
+														<div className="flex justify-between mb-1">
+															<span className="text-sm font-medium">{asset.asset.symbol}</span>
+															<span className="text-sm text-muted-foreground">
+																{formatVnd(asset.currentValue * vndRate)} ({formatPercent(percentage)})
+															</span>
+														</div>
+														<div className="w-full bg-gray-200 rounded-full h-3">
+															<div
+																className="bg-gradient-to-r from-blue-500 to-blue-600 h-3 rounded-full"
+																style={{ width: `${percentage}%` }}
+															/>
+														</div>
+													</div>
+												);
+											})}
+											{p2pSummary?.summary && p2pSummary.summary.currentValue > 0 && (
+												<div>
+													<div className="flex justify-between mb-1">
+														<span className="text-sm font-medium">P2P USDT</span>
+														<span className="text-sm text-muted-foreground">
+															{formatVnd(totalP2PValue)} ({formatPercent((totalP2PValue / totalPortfolioValue) * 100)})
+														</span>
+													</div>
+													<div className="w-full bg-gray-200 rounded-full h-3">
+														<div
+															className="bg-gradient-to-r from-green-500 to-green-600 h-3 rounded-full"
+															style={{ width: `${(totalP2PValue / totalPortfolioValue) * 100}%` }}
+														/>
+													</div>
+												</div>
+											)}
+										</div>
+									</CardContent>
+								</Card>
+
+								<Card>
+									<CardHeader>
+										<CardTitle>Rebalancing Suggestions</CardTitle>
+										<CardDescription>Optimize your portfolio allocation</CardDescription>
+									</CardHeader>
+									<CardContent>
+										<div className="space-y-3">
+											{dashboardData?.assets?.map((asset: any) => {
+												const currentAllocation = (asset.currentValue / totalPortfolioValue) * 100;
+												const targetAllocation = 100 / (dashboardData.assets.length + (p2pSummary?.summary?.currentValue > 0 ? 1 : 0));
+												const difference = currentAllocation - targetAllocation;
+
+												if (Math.abs(difference) > 5) {
+													return (
+														<div key={asset.asset.id} className="p-3 border rounded-lg">
+															<div className="flex items-center justify-between">
+																<div className="flex items-center gap-2">
+																	<Image
+																		src={getCryptoLogo(asset.asset.symbol)}
+																		alt={asset.asset.symbol}
+																		width={24}
+																		height={24}
+																		className="rounded-full"
+																	/>
+																	<span className="font-medium">{asset.asset.symbol}</span>
+																</div>
+																<Badge variant={difference > 0 ? "destructive" : "default"}>
+																	{difference > 0 ? "Overweight" : "Underweight"}
+																</Badge>
+															</div>
+															<div className="mt-2 text-sm text-muted-foreground">
+																Current: {formatPercent(currentAllocation)} → Target: {formatPercent(targetAllocation)}
+															</div>
+															<div className="mt-1 text-sm">
+																{difference > 0 ? "Consider selling" : "Consider buying"} {formatVnd(Math.abs(difference * totalPortfolioValue / 100) * vndRate)}
+															</div>
+														</div>
+													);
+												}
+												return null;
+											})}
+											{dashboardData?.assets?.every((asset: any) => {
+												const currentAllocation = (asset.currentValue / totalPortfolioValue) * 100;
+												const targetAllocation = 100 / dashboardData.assets.length;
+												return Math.abs(currentAllocation - targetAllocation) <= 5;
+											}) && (
+												<div className="text-center py-8 text-muted-foreground">
+													<CheckCircle className="h-12 w-12 mx-auto mb-2 text-green-600" />
+													<p>Your portfolio is well balanced!</p>
+												</div>
+											)}
+										</div>
+									</CardContent>
+								</Card>
 							</div>
-						</div>
-					)}
-				</div>
-			</div>
+						</TabsContent>
+
+						{/* Transactions Tab */}
+						<TabsContent value="transactions" className="space-y-4">
+							<Card>
+								<CardHeader>
+									<CardTitle>Transaction History</CardTitle>
+									<CardDescription>Complete history of all your trades</CardDescription>
+								</CardHeader>
+								<CardContent>
+									<div className="overflow-x-auto">
+										<table className="w-full">
+											<thead className="border-b">
+												<tr>
+													<th className="text-left py-2">Date</th>
+													<th className="text-left py-2">Type</th>
+													<th className="text-left py-2">Asset</th>
+													<th className="text-right py-2">Quantity</th>
+													<th className="text-right py-2">Price</th>
+													<th className="text-right py-2">Total</th>
+													<th className="text-right py-2">Fee</th>
+												</tr>
+											</thead>
+											<tbody>
+												{recentTransactions?.map((tx: any) => (
+													<tr key={tx.id} className="border-b hover:bg-gray-50">
+														<td className="py-3">
+															{format(new Date(tx.transactionDate), "MMM dd, yyyy HH:mm")}
+														</td>
+														<td className="py-3">
+															<Badge variant={tx.type === "buy" ? "default" : "secondary"}>
+																{tx.type}
+															</Badge>
+														</td>
+														<td className="py-3">
+															<div className="flex items-center gap-2">
+																<Image
+																	src={getCryptoLogo(tx.asset?.symbol)}
+																	alt={tx.asset?.symbol || ""}
+																	width={24}
+																	height={24}
+																	className="rounded-full"
+																/>
+																<span>{tx.asset?.symbol}</span>
+															</div>
+														</td>
+														<td className="text-right py-3">
+															{formatCrypto(tx.quantity)}
+														</td>
+														<td className="text-right py-3">
+															{maskValue(formatVnd(tx.pricePerUnit * vndRate))}
+														</td>
+														<td className="text-right py-3">
+															{maskValue(formatVnd(tx.totalAmount * vndRate))}
+														</td>
+														<td className="text-right py-3">
+															{maskValue(formatVnd(tx.fee * vndRate))}
+														</td>
+													</tr>
+												))}
+											</tbody>
+										</table>
+									</div>
+									<div className="text-center text-sm text-blue-600 hover:underline mt-4 pt-4 border-t">
+										View all transactions
+									</div>
+								</CardContent>
+							</Card>
+						</TabsContent>
+
+						{/* Insights Tab */}
+						<TabsContent value="insights" className="space-y-4">
+							<div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+								<Card>
+									<CardHeader>
+										<CardTitle>Investment Insights</CardTitle>
+										<CardDescription>Key observations about your portfolio</CardDescription>
+									</CardHeader>
+									<CardContent className="space-y-4">
+										{/* ROI Analysis */}
+										<div className="p-4 border rounded-lg">
+											<div className="flex items-start gap-3">
+												<Calculator className="h-5 w-5 text-blue-600 mt-0.5" />
+												<div>
+													<p className="font-medium">Return on Investment</p>
+													<p className="text-sm text-muted-foreground mt-1">
+														Your portfolio has generated a {metrics.roi >= 0 ? 'profit' : 'loss'} of {formatPercent(Math.abs(metrics.roi))} since inception
+													</p>
+													{metrics.roi >= 10 && (
+														<Badge className="mt-2" variant="default">
+															Outperforming expectations
+														</Badge>
+													)}
+												</div>
+											</div>
+										</div>
+
+										{/* Diversification Analysis */}
+										<div className="p-4 border rounded-lg">
+											<div className="flex items-start gap-3">
+												<PieChart className="h-5 w-5 text-purple-600 mt-0.5" />
+												<div>
+													<p className="font-medium">Diversification Analysis</p>
+													<p className="text-sm text-muted-foreground mt-1">
+														{metrics.diversificationScore > 70 ?
+															"Your portfolio is well-diversified, reducing risk exposure" :
+														 metrics.diversificationScore > 40 ?
+															"Consider adding more assets to improve diversification" :
+															"Your portfolio is concentrated. Consider diversifying to reduce risk"
+														}
+													</p>
+												</div>
+											</div>
+										</div>
+
+										{/* Volatility Assessment */}
+										<div className="p-4 border rounded-lg">
+											<div className="flex items-start gap-3">
+												<Activity className="h-5 w-5 text-orange-600 mt-0.5" />
+												<div>
+													<p className="font-medium">Volatility Assessment</p>
+													<p className="text-sm text-muted-foreground mt-1">
+														{metrics.volatility === "Low" ?
+															"Your portfolio shows low volatility, suitable for conservative investors" :
+														 metrics.volatility === "Medium" ?
+															"Moderate volatility detected, balanced risk-reward profile" :
+															"High volatility detected. Expect larger price swings"
+														}
+													</p>
+												</div>
+											</div>
+										</div>
+									</CardContent>
+								</Card>
+
+								<Card>
+									<CardHeader>
+										<CardTitle>Recommendations</CardTitle>
+										<CardDescription>Suggested actions to optimize your portfolio</CardDescription>
+									</CardHeader>
+									<CardContent className="space-y-3">
+										{/* Dynamic recommendations based on metrics */}
+										{metrics.diversificationScore < 50 && (
+											<div className="p-3 border rounded-lg border-yellow-200 bg-yellow-50">
+												<div className="flex items-start gap-2">
+													<AlertCircle className="h-4 w-4 text-yellow-600 mt-0.5" />
+													<div>
+														<p className="text-sm font-medium">Improve Diversification</p>
+														<p className="text-xs text-muted-foreground mt-1">
+															Consider adding 2-3 more assets to reduce concentration risk
+														</p>
+													</div>
+												</div>
+											</div>
+										)}
+
+										{metrics.roi < -10 && (
+											<div className="p-3 border rounded-lg border-red-200 bg-red-50">
+												<div className="flex items-start gap-2">
+													<TrendingDown className="h-4 w-4 text-red-600 mt-0.5" />
+													<div>
+														<p className="text-sm font-medium">Review Loss-Making Positions</p>
+														<p className="text-xs text-muted-foreground mt-1">
+															Consider tax-loss harvesting or averaging down on fundamentally strong assets
+														</p>
+													</div>
+												</div>
+											</div>
+										)}
+
+										{metrics.roi > 20 && (
+											<div className="p-3 border rounded-lg border-green-200 bg-green-50">
+												<div className="flex items-start gap-2">
+													<TrendingUp className="h-4 w-4 text-green-600 mt-0.5" />
+													<div>
+														<p className="text-sm font-medium">Consider Taking Profits</p>
+														<p className="text-xs text-muted-foreground mt-1">
+															Your portfolio is up significantly. Consider rebalancing or taking some profits
+														</p>
+													</div>
+												</div>
+											</div>
+										)}
+
+										<div className="p-3 border rounded-lg">
+											<div className="flex items-start gap-2">
+												<Target className="h-4 w-4 text-blue-600 mt-0.5" />
+												<div>
+													<p className="text-sm font-medium">Set Investment Goals</p>
+													<p className="text-xs text-muted-foreground mt-1">
+														Define clear targets for each position to make informed decisions
+													</p>
+												</div>
+											</div>
+										</div>
+
+										<div className="p-3 border rounded-lg">
+											<div className="flex items-start gap-2">
+												<Clock className="h-4 w-4 text-purple-600 mt-0.5" />
+												<div>
+													<p className="text-sm font-medium">Regular Review</p>
+													<p className="text-xs text-muted-foreground mt-1">
+														Schedule monthly portfolio reviews to stay on track with your goals
+													</p>
+												</div>
+											</div>
+										</div>
+									</CardContent>
+								</Card>
+							</div>
+
+							{/* Market Context */}
+							<Card>
+								<CardHeader>
+									<CardTitle>Market Context</CardTitle>
+									<CardDescription>How your portfolio compares to market conditions</CardDescription>
+								</CardHeader>
+								<CardContent>
+									<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+										<div className="text-center p-4 border rounded-lg">
+											<Hash className="h-8 w-8 mx-auto mb-2 text-blue-600" />
+											<p className="text-2xl font-bold">{dashboardData?.assets?.length || 0}</p>
+											<p className="text-sm text-muted-foreground">Assets Held</p>
+										</div>
+										<div className="text-center p-4 border rounded-lg">
+											<Percent className="h-8 w-8 mx-auto mb-2 text-green-600" />
+											<p className="text-2xl font-bold">{formatPercent(metrics.roi)}</p>
+											<p className="text-sm text-muted-foreground">Total ROI</p>
+										</div>
+										<div className="text-center p-4 border rounded-lg">
+											<Activity className="h-8 w-8 mx-auto mb-2 text-purple-600" />
+											<p className="text-2xl font-bold">{recentTransactions?.length || 0}</p>
+											<p className="text-sm text-muted-foreground">Total Trades</p>
+										</div>
+									</div>
+								</CardContent>
+							</Card>
+						</TabsContent>
+					</Tabs>
+				</>
+			)}
 		</div>
 	);
 }

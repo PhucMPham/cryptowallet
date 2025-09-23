@@ -4,6 +4,8 @@
     "": {
       "name": "cryptowallet",
       "dependencies": {
+        "@radix-ui/react-progress": "^1.1.7",
+        "@radix-ui/react-tabs": "^1.1.13",
         "@trpc/react-query": "^11.5.1",
         "date-fns": "^4.1.0",
       },

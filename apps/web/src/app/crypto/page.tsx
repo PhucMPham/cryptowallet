@@ -30,7 +30,7 @@ import {
 	DialogTitle,
 	DialogTrigger,
 } from "@/components/ui/dialog";
-import { PlusCircle, TrendingUp, TrendingDown, DollarSign, Wallet } from "lucide-react";
+import { PlusCircle, TrendingUp, TrendingDown, DollarSign, Wallet, ArrowUp, ArrowDown } from "lucide-react";
 import { toast } from "sonner";
 
 export default function CryptoTracker() {
@@ -38,7 +38,9 @@ export default function CryptoTracker() {
 	const [selectedAssetId, setSelectedAssetId] = useState<number | null>(null);
 
 	// Fetch data
-	const { data: assets, refetch: refetchAssets } = api.crypto.getAssets.useQuery();
+	const { data: assets, refetch: refetchAssets } = api.crypto.getAssetsWithPrices.useQuery(undefined, {
+		refetchInterval: 30000, // Refresh prices every 30 seconds
+	});
 	const { data: portfolio } = api.crypto.getPortfolioSummary.useQuery();
 
 	// Mutations
@@ -390,51 +392,125 @@ export default function CryptoTracker() {
 								<TableHead>Name</TableHead>
 								<TableHead className="text-right">Holdings</TableHead>
 								<TableHead className="text-right">Avg Buy Price</TableHead>
-								<TableHead className="text-right">Total Invested</TableHead>
-								<TableHead className="text-right">Total Sold</TableHead>
-								<TableHead className="text-right">Transactions</TableHead>
+								<TableHead className="text-right">Current Price</TableHead>
+								<TableHead className="text-right">Current Value</TableHead>
+								<TableHead className="text-right">Profit/Loss</TableHead>
+								<TableHead className="text-right">P&L %</TableHead>
 								<TableHead></TableHead>
 							</TableRow>
 						</TableHeader>
 						<TableBody>
 							{assets && assets.length > 0 ? (
-								assets.map((item) => (
-									<TableRow key={item.asset.id}>
-										<TableCell className="font-medium">
-											{item.asset.symbol}
-										</TableCell>
-										<TableCell>{item.asset.name}</TableCell>
-										<TableCell className="text-right">
-											{formatNumber(item.totalQuantity)}
-										</TableCell>
-										<TableCell className="text-right">
-											{formatCurrency(item.avgBuyPrice)}
-										</TableCell>
-										<TableCell className="text-right">
-											{formatCurrency(item.totalInvested)}
-										</TableCell>
-										<TableCell className="text-right">
-											{formatCurrency(item.totalSold)}
-										</TableCell>
-										<TableCell className="text-right">
-											{item.transactionCount}
-										</TableCell>
-										<TableCell>
-											<Button
-												variant="ghost"
-												size="sm"
-												onClick={() =>
-													(window.location.href = `/crypto/${item.asset.id}`)
-												}
-											>
-												View Details
-											</Button>
-										</TableCell>
-									</TableRow>
-								))
+								assets.map((item) => {
+									const isProfitable = item.unrealizedPL > 0;
+									const hasHoldings = item.totalQuantity > 0;
+									return (
+										<TableRow key={item.asset.id}>
+											<TableCell className="font-medium">
+												<div className="flex items-center gap-2">
+													{item.logoUrl ? (
+														<img
+															src={item.logoUrl}
+															alt={item.asset.symbol}
+															className="w-6 h-6 rounded-full"
+															onError={(e) => {
+																e.currentTarget.style.display = 'none';
+															}}
+														/>
+													) : (
+														<div className="w-6 h-6 rounded-full bg-muted flex items-center justify-center text-xs font-bold">
+															{item.asset.symbol.slice(0, 2)}
+														</div>
+													)}
+													<span>{item.asset.symbol}</span>
+												</div>
+											</TableCell>
+											<TableCell>{item.asset.name}</TableCell>
+											<TableCell className="text-right">
+												{formatNumber(item.totalQuantity)}
+											</TableCell>
+											<TableCell className="text-right">
+												{formatCurrency(item.avgBuyPrice)}
+											</TableCell>
+											<TableCell className="text-right">
+												{item.currentPrice ? (
+													<div className="flex items-center justify-end gap-2">
+														{item.logoUrl && (
+															<img
+																src={item.logoUrl}
+																alt={item.asset.symbol}
+																className="w-4 h-4 rounded-full"
+																onError={(e) => {
+																	e.currentTarget.style.display = 'none';
+																}}
+															/>
+														)}
+														<span className="font-medium">
+															{formatCurrency(item.currentPrice)}
+														</span>
+													</div>
+												) : (
+													<span className="text-muted-foreground">-</span>
+												)}
+											</TableCell>
+											<TableCell className="text-right">
+												{hasHoldings && item.currentValue > 0 ? (
+													<span className="font-semibold">
+														{formatCurrency(item.currentValue)}
+													</span>
+												) : (
+													<span className="text-muted-foreground">-</span>
+												)}
+											</TableCell>
+											<TableCell className="text-right">
+												{hasHoldings && item.currentPrice ? (
+													<span
+														className={`flex items-center justify-end gap-1 ${
+															isProfitable ? "text-green-600" : "text-red-600"
+														}`}
+													>
+														{isProfitable ? (
+															<ArrowUp className="h-3 w-3" />
+														) : (
+															<ArrowDown className="h-3 w-3" />
+														)}
+														{formatCurrency(Math.abs(item.unrealizedPL))}
+													</span>
+												) : (
+													<span className="text-muted-foreground">-</span>
+												)}
+											</TableCell>
+											<TableCell className="text-right">
+												{hasHoldings && item.currentPrice ? (
+													<span
+														className={`font-medium ${
+															isProfitable ? "text-green-600" : "text-red-600"
+														}`}
+													>
+														{item.unrealizedPLPercent >= 0 ? "+" : ""}
+														{item.unrealizedPLPercent.toFixed(2)}%
+													</span>
+												) : (
+													<span className="text-muted-foreground">-</span>
+												)}
+											</TableCell>
+											<TableCell>
+												<Button
+													variant="ghost"
+													size="sm"
+													onClick={() =>
+														(window.location.href = `/crypto/${item.asset.id}`)
+													}
+												>
+													View Details
+												</Button>
+											</TableCell>
+										</TableRow>
+									);
+								})
 							) : (
 								<TableRow>
-									<TableCell colSpan={8} className="text-center text-muted-foreground">
+									<TableCell colSpan={9} className="text-center text-muted-foreground">
 										No assets found. Add your first transaction to get started.
 									</TableCell>
 								</TableRow>

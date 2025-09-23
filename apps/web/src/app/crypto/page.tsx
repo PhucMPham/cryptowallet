@@ -105,6 +105,15 @@ export default function CryptoTracker() {
 		}).format(amount);
 	};
 
+	const formatVnd = (amount: number) => {
+		return new Intl.NumberFormat("vi-VN", {
+			style: "currency",
+			currency: "VND",
+			minimumFractionDigits: 0,
+			maximumFractionDigits: 0,
+		}).format(amount);
+	};
+
 	const formatNumber = (amount: number, decimals: number = 6) => {
 		return new Intl.NumberFormat("en-US", {
 			minimumFractionDigits: 0,
@@ -116,7 +125,19 @@ export default function CryptoTracker() {
 		<div className="container mx-auto p-6 space-y-6">
 			{/* Header */}
 			<div className="flex justify-between items-center">
-				<h1 className="text-3xl font-bold">Crypto Portfolio Tracker</h1>
+				<div>
+					<h1 className="text-3xl font-bold">Crypto Portfolio Tracker</h1>
+					{assets && assets[0]?.vnd && (
+						<p className="text-sm text-muted-foreground mt-1">
+							Exchange Rate: 1 USD = {formatVnd(assets[0].vnd.exchangeRate)}
+							{assets[0].vnd.source === "P2P Market" && (
+								<span className="ml-1 text-xs bg-primary/10 text-primary px-2 py-0.5 rounded">
+									P2P Rate
+								</span>
+							)}
+						</p>
+					)}
+				</div>
 				<Dialog open={isAddingTransaction} onOpenChange={setIsAddingTransaction}>
 					<DialogTrigger asChild>
 						<Button>
@@ -339,7 +360,10 @@ export default function CryptoTracker() {
 						<DollarSign className="h-4 w-4 text-muted-foreground" />
 					</CardHeader>
 					<CardContent>
-						<div className="text-2xl font-bold">
+						<div className="text-2xl font-bold text-primary">
+							{formatVnd(portfolio?.vnd?.totalInvested || 0)}
+						</div>
+						<div className="text-sm text-muted-foreground">
 							{formatCurrency(portfolio?.totalInvested || 0)}
 						</div>
 					</CardContent>
@@ -350,7 +374,10 @@ export default function CryptoTracker() {
 						<TrendingUp className="h-4 w-4 text-muted-foreground" />
 					</CardHeader>
 					<CardContent>
-						<div className="text-2xl font-bold">
+						<div className="text-2xl font-bold text-primary">
+							{formatVnd(portfolio?.vnd?.totalSold || 0)}
+						</div>
+						<div className="text-sm text-muted-foreground">
 							{formatCurrency(portfolio?.totalSold || 0)}
 						</div>
 					</CardContent>
@@ -361,7 +388,10 @@ export default function CryptoTracker() {
 						<Wallet className="h-4 w-4 text-muted-foreground" />
 					</CardHeader>
 					<CardContent>
-						<div className="text-2xl font-bold">
+						<div className="text-2xl font-bold text-primary">
+							{formatVnd(portfolio?.vnd?.netInvested || 0)}
+						</div>
+						<div className="text-sm text-muted-foreground">
 							{formatCurrency(
 								(portfolio?.totalInvested || 0) - (portfolio?.totalSold || 0)
 							)}
@@ -430,7 +460,12 @@ export default function CryptoTracker() {
 												{formatNumber(item.totalQuantity)}
 											</TableCell>
 											<TableCell className="text-right">
-												{formatCurrency(item.avgBuyPrice)}
+												<div className="font-medium">
+													{formatVnd(item.vnd?.avgBuyPrice || 0)}
+												</div>
+												<div className="text-xs text-muted-foreground">
+													{formatCurrency(item.avgBuyPrice)}
+												</div>
 											</TableCell>
 											<TableCell className="text-right">
 												{item.currentPrice ? (
@@ -445,9 +480,14 @@ export default function CryptoTracker() {
 																}}
 															/>
 														)}
-														<span className="font-medium">
-															{formatCurrency(item.currentPrice)}
-														</span>
+														<div>
+															<div className="font-medium">
+																{formatVnd(item.vnd?.currentPrice || 0)}
+															</div>
+															<div className="text-xs text-muted-foreground">
+																{formatCurrency(item.currentPrice)}
+															</div>
+														</div>
 													</div>
 												) : (
 													<span className="text-muted-foreground">-</span>
@@ -455,27 +495,41 @@ export default function CryptoTracker() {
 											</TableCell>
 											<TableCell className="text-right">
 												{hasHoldings && item.currentValue > 0 ? (
-													<span className="font-semibold">
-														{formatCurrency(item.currentValue)}
-													</span>
+													<div>
+														<div className="font-semibold">
+															{formatVnd(item.vnd?.currentValue || 0)}
+														</div>
+														<div className="text-xs text-muted-foreground">
+															{formatCurrency(item.currentValue)}
+														</div>
+													</div>
 												) : (
 													<span className="text-muted-foreground">-</span>
 												)}
 											</TableCell>
 											<TableCell className="text-right">
 												{hasHoldings && item.currentPrice ? (
-													<span
-														className={`flex items-center justify-end gap-1 ${
+													<div
+														className={`${
 															isProfitable ? "text-green-600" : "text-red-600"
 														}`}
 													>
-														{isProfitable ? (
-															<ArrowUp className="h-3 w-3" />
-														) : (
-															<ArrowDown className="h-3 w-3" />
-														)}
-														{formatCurrency(Math.abs(item.unrealizedPL))}
-													</span>
+														<div className="flex items-center justify-end gap-1">
+															{isProfitable ? (
+																<ArrowUp className="h-3 w-3" />
+															) : (
+																<ArrowDown className="h-3 w-3" />
+															)}
+															<div>
+																<div className="font-medium">
+																	{formatVnd(Math.abs(item.vnd?.unrealizedPL || 0))}
+																</div>
+																<div className="text-xs">
+																	{formatCurrency(Math.abs(item.unrealizedPL))}
+																</div>
+															</div>
+														</div>
+													</div>
 												) : (
 													<span className="text-muted-foreground">-</span>
 												)}

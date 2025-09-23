@@ -5,6 +5,7 @@ import { eq, and, desc, sql } from "drizzle-orm";
 import { db } from "../db";
 import { priceService } from "../services/priceService";
 import { coinMarketCapService } from "../services/coinmarketcapService";
+import { CurrencyService } from "../services/currencyService";
 
 export const cryptoRouter = router({
 	// Get all assets for user
@@ -154,6 +155,9 @@ export const cryptoRouter = router({
 			}
 		}
 
+		// Get VND conversion rate
+		const vndConversion = await CurrencyService.getUsdToVndRate();
+
 		// Combine assets with prices and logos
 		const assetsWithPrices = assets.map(item => {
 			const currentPrice = prices[item.asset.symbol] || null;
@@ -172,6 +176,14 @@ export const cryptoRouter = router({
 				? `https://s2.coinmarketcap.com/static/img/coins/64x64/${cryptoId}.png`
 				: null;
 
+			// Calculate VND values
+			const currentPriceVnd = currentPrice ? currentPrice * vndConversion.usdToVnd : null;
+			const currentValueVnd = currentValue * vndConversion.usdToVnd;
+			const avgBuyPriceVnd = item.avgBuyPrice * vndConversion.usdToVnd;
+			const unrealizedPLVnd = unrealizedPL * vndConversion.usdToVnd;
+			const totalInvestedVnd = item.totalInvested * vndConversion.usdToVnd;
+			const totalSoldVnd = item.totalSold * vndConversion.usdToVnd;
+
 			return {
 				...item,
 				currentPrice,
@@ -180,6 +192,17 @@ export const cryptoRouter = router({
 				unrealizedPLPercent,
 				totalValue: currentValue, // Total value of current holdings
 				logoUrl, // Add logo URL
+				// VND values
+				vnd: {
+					currentPrice: currentPriceVnd,
+					currentValue: currentValueVnd,
+					avgBuyPrice: avgBuyPriceVnd,
+					unrealizedPL: unrealizedPLVnd,
+					totalInvested: totalInvestedVnd,
+					totalSold: totalSoldVnd,
+					exchangeRate: vndConversion.usdToVnd,
+					source: vndConversion.source
+				}
 			};
 		});
 
@@ -190,6 +213,19 @@ export const cryptoRouter = router({
 	getAssetDetails: publicProcedure
 		.input(z.object({ assetId: z.number() }))
 		.query(async ({ input }) => {
+			// CoinMarketCap IDs for logo URLs (same as above)
+			const cryptoIdMap: Record<string, number> = {
+				BTC: 1, ETH: 1027, USDT: 825, BNB: 1839, XRP: 52, SOL: 5426,
+				USDC: 3408, ADA: 2010, DOGE: 74, AVAX: 5805, TRX: 1958,
+				DOT: 6636, LINK: 1975, MATIC: 3890, POLYGON: 3890, POL: 3890,
+				TON: 11419, ICP: 8916, SHIB: 5994, LTC: 2, BCH: 1831,
+				UNI: 7083, ATOM: 3794, XLM: 512, ETC: 1321, FIL: 2280,
+				APT: 21794, ARB: 11841, OP: 11840, VET: 3077, HBAR: 4642,
+				NEAR: 6535, GRT: 6719, ALGO: 4030, FTM: 3513, SAND: 6210,
+				MANA: 1966, AXS: 6783, AAVE: 7278, CRV: 6538, SUSHI: 6758,
+				CAKE: 7186, XTZ: 2011,
+			};
+
 			const asset = await db
 				.select()
 				.from(cryptoAsset)
@@ -223,9 +259,31 @@ export const cryptoRouter = router({
 			const currentHoldings = totalBought - totalSold;
 			const avgBuyPrice = totalBought > 0 ? totalInvested / totalBought : 0;
 
+			// Get VND conversion rate
+			const vndConversion = await CurrencyService.getUsdToVndRate();
+
+			// Calculate VND values for transactions
+			const transactionsWithVnd = transactions.map(tx => ({
+				...tx,
+				vnd: {
+					pricePerUnit: tx.pricePerUnit * vndConversion.usdToVnd,
+					totalAmount: tx.totalAmount * vndConversion.usdToVnd,
+					fee: tx.fee ? tx.fee * vndConversion.usdToVnd : null
+				}
+			}));
+
+			// Get logo URL from CoinMarketCap
+			const cryptoId = cryptoIdMap[asset[0].symbol.toUpperCase()];
+			const logoUrl = cryptoId
+				? `https://s2.coinmarketcap.com/static/img/coins/64x64/${cryptoId}.png`
+				: null;
+
 			return {
-				asset: asset[0],
-				transactions,
+				asset: {
+					...asset[0],
+					logoUrl
+				},
+				transactions: transactionsWithVnd,
 				summary: {
 					totalBought,
 					totalSold,
@@ -234,6 +292,16 @@ export const cryptoRouter = router({
 					totalRevenue,
 					avgBuyPrice,
 					realizedPL: totalRevenue - (totalSold * avgBuyPrice),
+					// VND values
+					vnd: {
+						totalInvested: totalInvested * vndConversion.usdToVnd,
+						totalRevenue: totalRevenue * vndConversion.usdToVnd,
+						avgBuyPrice: avgBuyPrice * vndConversion.usdToVnd,
+						realizedPL: (totalRevenue - (totalSold * avgBuyPrice)) * vndConversion.usdToVnd,
+						netInvested: (totalInvested - totalRevenue) * vndConversion.usdToVnd,
+						exchangeRate: vndConversion.usdToVnd,
+						source: vndConversion.source
+					}
 				},
 			};
 		}),
@@ -467,7 +535,7 @@ export const cryptoRouter = router({
 			.from(cryptoTransaction)
 			.limit(1);
 
-		return summary[0] || {
+		const baseSummary = summary[0] || {
 			totalInvested: 0,
 			totalSold: 0,
 			totalFees: 0,
@@ -475,7 +543,49 @@ export const cryptoRouter = router({
 			assetCount: 0,
 			netInvested: 0,
 		};
+
+		// Get VND conversion rate
+		const vndConversion = await CurrencyService.getUsdToVndRate();
+
+		// Add VND values
+		return {
+			...baseSummary,
+			vnd: {
+				totalInvested: baseSummary.totalInvested * vndConversion.usdToVnd,
+				totalSold: baseSummary.totalSold * vndConversion.usdToVnd,
+				totalFees: baseSummary.totalFees * vndConversion.usdToVnd,
+				netInvested: (baseSummary.totalInvested - baseSummary.totalSold) * vndConversion.usdToVnd,
+				exchangeRate: vndConversion.usdToVnd,
+				source: vndConversion.source
+			}
+		};
 	}),
+
+	// Update VND exchange rate from P2P
+	updateVndRate: publicProcedure
+		.input(z.object({
+			rate: z.number().positive(),
+			source: z.string().optional()
+		}))
+		.mutation(async ({ input }) => {
+			// Import marketRate if needed
+			const { marketRate } = await import("../db/schema/p2p");
+
+			// Update the USDT/VND rate in the database
+			await db.insert(marketRate).values({
+				crypto: "USDT",
+				fiatCurrency: "VND",
+				rate: input.rate,
+				source: input.source || "Manual",
+				timestamp: new Date(),
+			});
+
+			return {
+				success: true,
+				rate: input.rate,
+				source: input.source || "Manual"
+			};
+		}),
 
 	// Test CoinMarketCap integration
 	testCoinMarketCap: publicProcedure

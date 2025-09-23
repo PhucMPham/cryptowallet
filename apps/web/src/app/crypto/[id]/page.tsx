@@ -146,6 +146,15 @@ export default function AssetDetails() {
 		}).format(amount);
 	};
 
+	const formatVnd = (amount: number) => {
+		return new Intl.NumberFormat("vi-VN", {
+			style: "currency",
+			currency: "VND",
+			minimumFractionDigits: 0,
+			maximumFractionDigits: 0,
+		}).format(amount);
+	};
+
 	const formatNumber = (amount: number, decimals: number = 6) => {
 		return new Intl.NumberFormat("en-US", {
 			minimumFractionDigits: 0,
@@ -173,9 +182,35 @@ export default function AssetDetails() {
 					<ArrowLeft className="h-4 w-4" />
 				</Button>
 				<div className="flex-1">
-					<h1 className="text-3xl font-bold">
-						{data.asset.name} ({data.asset.symbol})
-					</h1>
+					<div className="flex items-center gap-3">
+						{data.asset.logoUrl ? (
+							<img
+								src={data.asset.logoUrl}
+								alt={data.asset.symbol}
+								className="w-10 h-10 rounded-full"
+								onError={(e) => {
+									e.currentTarget.style.display = 'none';
+								}}
+							/>
+						) : (
+							<div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center text-lg font-bold">
+								{data.asset.symbol.slice(0, 2)}
+							</div>
+						)}
+						<h1 className="text-3xl font-bold">
+							{data.asset.name} ({data.asset.symbol})
+						</h1>
+					</div>
+					{data.summary.vnd && (
+						<p className="text-sm text-muted-foreground mt-2 ml-13">
+							Exchange Rate: 1 USD = {formatVnd(data.summary.vnd.exchangeRate)}
+							{data.summary.vnd.source === "P2P Market" && (
+								<span className="ml-1 text-xs bg-primary/10 text-primary px-2 py-0.5 rounded">
+									P2P Rate
+								</span>
+							)}
+						</p>
+					)}
 				</div>
 				<Dialog open={isAddingTransaction} onOpenChange={setIsAddingTransaction}>
 					<DialogTrigger asChild>
@@ -356,7 +391,18 @@ export default function AssetDetails() {
 				<Card>
 					<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
 						<CardTitle className="text-sm font-medium">Current Holdings</CardTitle>
-						<DollarSign className="h-4 w-4 text-muted-foreground" />
+						{data.asset.logoUrl ? (
+							<img
+								src={data.asset.logoUrl}
+								alt={data.asset.symbol}
+								className="h-4 w-4 rounded-full opacity-60"
+								onError={(e) => {
+									e.currentTarget.style.display = 'none';
+								}}
+							/>
+						) : (
+							<DollarSign className="h-4 w-4 text-muted-foreground" />
+						)}
 					</CardHeader>
 					<CardContent>
 						<div className="text-2xl font-bold">
@@ -373,10 +419,13 @@ export default function AssetDetails() {
 						<TrendingUp className="h-4 w-4 text-muted-foreground" />
 					</CardHeader>
 					<CardContent>
-						<div className="text-2xl font-bold">
+						<div className="text-2xl font-bold text-primary">
+							{formatVnd(data.summary.vnd?.avgBuyPrice || 0)}
+						</div>
+						<div className="text-sm text-muted-foreground">
 							{formatCurrency(data.summary.avgBuyPrice)}
 						</div>
-						<p className="text-xs text-muted-foreground">DCA price per token</p>
+						<p className="text-xs text-muted-foreground mt-1">DCA price per token</p>
 					</CardContent>
 				</Card>
 				<Card>
@@ -385,10 +434,13 @@ export default function AssetDetails() {
 						<DollarSign className="h-4 w-4 text-muted-foreground" />
 					</CardHeader>
 					<CardContent>
-						<div className="text-2xl font-bold">
+						<div className="text-2xl font-bold text-primary">
+							{formatVnd(data.summary.vnd?.totalInvested || 0)}
+						</div>
+						<div className="text-sm text-muted-foreground">
 							{formatCurrency(data.summary.totalInvested)}
 						</div>
-						<p className="text-xs text-muted-foreground">Including fees</p>
+						<p className="text-xs text-muted-foreground mt-1">Including fees</p>
 					</CardContent>
 				</Card>
 				<Card>
@@ -402,9 +454,12 @@ export default function AssetDetails() {
 								data.summary.realizedPL >= 0 ? "text-green-600" : "text-red-600"
 							}`}
 						>
+							{formatVnd(data.summary.vnd?.realizedPL || 0)}
+						</div>
+						<div className="text-sm text-muted-foreground">
 							{formatCurrency(data.summary.realizedPL)}
 						</div>
-						<p className="text-xs text-muted-foreground">From sold positions</p>
+						<p className="text-xs text-muted-foreground mt-1">From sold positions</p>
 					</CardContent>
 				</Card>
 			</div>
@@ -443,21 +498,36 @@ export default function AssetDetails() {
 					<CardContent className="space-y-2">
 						<div className="flex justify-between">
 							<span className="text-sm text-muted-foreground">Total Invested</span>
-							<span className="font-medium">
-								{formatCurrency(data.summary.totalInvested)}
-							</span>
+							<div className="text-right">
+								<div className="font-medium">
+									{formatVnd(data.summary.vnd?.totalInvested || 0)}
+								</div>
+								<div className="text-xs text-muted-foreground">
+									{formatCurrency(data.summary.totalInvested)}
+								</div>
+							</div>
 						</div>
 						<div className="flex justify-between">
 							<span className="text-sm text-muted-foreground">Total Revenue</span>
-							<span className="font-medium">
-								{formatCurrency(data.summary.totalRevenue)}
-							</span>
+							<div className="text-right">
+								<div className="font-medium">
+									{formatVnd(data.summary.vnd?.totalRevenue || 0)}
+								</div>
+								<div className="text-xs text-muted-foreground">
+									{formatCurrency(data.summary.totalRevenue)}
+								</div>
+							</div>
 						</div>
 						<div className="flex justify-between">
 							<span className="text-sm text-muted-foreground">Net Invested</span>
-							<span className="font-medium">
-								{formatCurrency(data.summary.totalInvested - data.summary.totalRevenue)}
-							</span>
+							<div className="text-right">
+								<div className="font-medium">
+									{formatVnd(data.summary.vnd?.netInvested || 0)}
+								</div>
+								<div className="text-xs text-muted-foreground">
+									{formatCurrency(data.summary.totalInvested - data.summary.totalRevenue)}
+								</div>
+							</div>
 						</div>
 					</CardContent>
 				</Card>
@@ -476,8 +546,8 @@ export default function AssetDetails() {
 								<TableHead>Type</TableHead>
 								<TableHead>Exchange</TableHead>
 								<TableHead className="text-right">Quantity</TableHead>
-								<TableHead className="text-right">Price/Unit</TableHead>
-								<TableHead className="text-right">Total</TableHead>
+								<TableHead className="text-right">Price/Unit<br/><span className="text-xs font-normal opacity-70">VND / USD</span></TableHead>
+								<TableHead className="text-right">Total<br/><span className="text-xs font-normal opacity-70">VND / USD</span></TableHead>
 								<TableHead className="text-right">Fee</TableHead>
 								<TableHead>Notes</TableHead>
 								<TableHead></TableHead>
@@ -485,27 +555,68 @@ export default function AssetDetails() {
 						</TableHeader>
 						<TableBody>
 							{data.transactions.map((tx) => (
-								<TableRow key={tx.id}>
+								<TableRow
+									key={tx.id}
+									className={tx.type === "buy"
+										? "hover:bg-green-50/50 dark:hover:bg-green-950/10"
+										: "hover:bg-red-50/50 dark:hover:bg-red-950/10"}
+								>
 									<TableCell>{formatDate(tx.transactionDate)}</TableCell>
 									<TableCell>
-										<Badge variant={tx.type === "buy" ? "default" : "secondary"}>
-											{tx.type.toUpperCase()}
+										<Badge
+											variant={tx.type === "buy" ? "default" : "destructive"}
+											className={tx.type === "buy"
+												? "bg-green-100 text-green-800 hover:bg-green-200 dark:bg-green-900/30 dark:text-green-400 border-green-300 dark:border-green-800"
+												: "bg-red-100 text-red-800 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-400 border-red-300 dark:border-red-800"}
+										>
+											{tx.type === "buy" ? (
+												<>
+													<TrendingDown className="mr-1 h-3 w-3" />
+													BUY
+												</>
+											) : (
+												<>
+													<TrendingUp className="mr-1 h-3 w-3" />
+													SELL
+												</>
+											)}
 										</Badge>
 									</TableCell>
 									<TableCell>{tx.exchange || "-"}</TableCell>
 									<TableCell className="text-right">
-										{formatNumber(tx.quantity)}
+										<span className={tx.type === "buy"
+											? "text-green-700 dark:text-green-400 font-medium"
+											: "text-red-700 dark:text-red-400 font-medium"}>
+											{tx.type === "buy" ? "+" : "-"}{formatNumber(tx.quantity)}
+										</span>
 									</TableCell>
 									<TableCell className="text-right">
-										{formatCurrency(tx.pricePerUnit)}
+										<div className="font-medium">
+											{formatVnd(tx.vnd?.pricePerUnit || 0)}
+										</div>
+										<div className="text-xs text-muted-foreground">
+											{formatCurrency(tx.pricePerUnit)}
+										</div>
 									</TableCell>
 									<TableCell className="text-right">
-										{formatCurrency(tx.totalAmount)}
+										<div className={`font-medium ${tx.type === "buy"
+											? "text-green-700 dark:text-green-400"
+											: "text-red-700 dark:text-red-400"}`}>
+											{formatVnd(tx.vnd?.totalAmount || 0)}
+										</div>
+										<div className="text-xs text-muted-foreground">
+											{formatCurrency(tx.totalAmount)}
+										</div>
 									</TableCell>
 									<TableCell className="text-right">
 										{tx.fee ? (
 											<div>
-												{formatCurrency(tx.fee)}
+												<div className="font-medium">
+													{formatVnd(tx.vnd?.fee || 0)}
+												</div>
+												<div className="text-xs text-muted-foreground">
+													{formatCurrency(tx.fee)}
+												</div>
 												{tx.feeCurrency === "CRYPTO" && tx.feeInCrypto && (
 													<div className="text-xs text-muted-foreground">
 														({formatNumber(tx.feeInCrypto)} {data.asset.symbol})

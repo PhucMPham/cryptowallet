@@ -448,14 +448,12 @@ export const cryptoRouter = router({
 					type: input.type,
 					quantity: input.quantity,
 					pricePerUnit: input.pricePerUnit,
-					totalAmount: input.paymentSource === "USDT" ? 0 : totalAmount, // Set to 0 if paid with USDT
-					fee: input.paymentSource === "USDT" ? 0 : feeInUSD, // Set to 0 if paid with USDT
+					totalAmount, // Always record the actual total amount
+					fee: feeInUSD, // Always record the actual fee
 					feeCurrency: input.feeCurrency || "USD",
 					feeInCrypto,
 					exchange: input.exchange,
-					notes: input.paymentSource === "USDT"
-						? `${input.notes ? input.notes + " - " : ""}Purchased with USDT`
-						: input.notes,
+					notes: input.notes || undefined,
 					transactionDate,
 					userId: ctx.session?.user?.id,
 				})

@@ -6,7 +6,7 @@ import Loader from "./loader";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
-import { useRouter } from "next/navigation";
+import { useRouter } from "@/navigation";
 
 export default function SignInForm({
 	onSwitchToSignUp,

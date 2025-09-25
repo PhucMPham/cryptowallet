@@ -28,7 +28,7 @@ import {
 } from "@/components/ui/tooltip";
 import { format } from "date-fns";
 import { Plus, TrendingUp, TrendingDown, RefreshCw, Info, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
-import Link from "next/link";
+import {Link} from "@/navigation";
 import { AddP2PTransactionDialog } from "@/components/p2p/AddP2PTransactionDialog";
 import {
   DropdownMenu,

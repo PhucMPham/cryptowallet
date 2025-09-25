@@ -1,0 +1,41 @@
+{
+  "crypto": {
+    "title": "Crypto Portfolio Tracker",
+    "exchangeRate": "Exchange Rate",
+    "p2pRate": "P2P Rate",
+    "addTransaction": "Add Transaction",
+    "addNewTransaction": "Add New Transaction",
+    "form": {
+      "symbol": "Symbol",
+      "name": "Name",
+      "type": "Type",
+      "buy": "Buy",
+      "sell": "Sell",
+      "paymentSource": "Payment Source",
+      "cash": "Cash (USD)",
+      "usdtBalance": "USDT Balance ({balance} USDT)",
+      "quantity": "Quantity",
+      "pricePerUnit": "Price per Unit ($)",
+      "feeCurrency": "Fee Currency",
+      "fee": "Fee",
+      "exchange": "Exchange",
+      "transactionDate": "Transaction Date",
+      "notes": "Notes",
+      "totalAmount": "Total Amount",
+      "totalCost": "Total Cost",
+      "remaining": "Remaining",
+      "cancel": "Cancel",
+      "adding": "Adding...",
+      "selectCrypto": "Select cryptocurrency",
+      "autoPopulated": "Auto-populated",
+      "optionalNotes": "Optional notes"
+    },
+    "messages": {
+      "transactionAdded": "Transaction added successfully!",
+      "boughtWithUsdt": "Bought {quantity} {symbol} using {amount} USDT!",
+      "failedToAdd": "Failed to add transaction",
+      "fillRequired": "Please fill in required fields",
+      "insufficientUsdt": "Insufficient USDT balance. You have {balance} USDT but need {required} USDT"
+    }
+  }
+}

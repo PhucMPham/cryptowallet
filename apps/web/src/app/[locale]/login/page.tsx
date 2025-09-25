@@ -1,11 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { Link, useRouter } from "@/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ChevronRight, Mail, Lock, User } from "lucide-react";
-import Link from "next/link";
 
 export default function LoginPage() {
 	const router = useRouter();

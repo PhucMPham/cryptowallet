@@ -1,0 +1,41 @@
+{
+  "crypto": {
+    "title": "Quản Lý Danh Mục Crypto",
+    "exchangeRate": "Tỷ giá",
+    "p2pRate": "Tỷ giá P2P",
+    "addTransaction": "Thêm Giao Dịch",
+    "addNewTransaction": "Thêm Giao Dịch Mới",
+    "form": {
+      "symbol": "Mã",
+      "name": "Tên",
+      "type": "Loại",
+      "buy": "Mua",
+      "sell": "Bán",
+      "paymentSource": "Nguồn Thanh Toán",
+      "cash": "Tiền mặt (USD)",
+      "usdtBalance": "Số dư USDT ({balance} USDT)",
+      "quantity": "Số lượng",
+      "pricePerUnit": "Giá mỗi đơn vị ($)",
+      "feeCurrency": "Loại phí",
+      "fee": "Phí",
+      "exchange": "Sàn giao dịch",
+      "transactionDate": "Ngày giao dịch",
+      "notes": "Ghi chú",
+      "totalAmount": "Tổng tiền",
+      "totalCost": "Tổng chi phí",
+      "remaining": "Còn lại",
+      "cancel": "Hủy",
+      "adding": "Đang thêm...",
+      "selectCrypto": "Chọn tiền điện tử",
+      "autoPopulated": "Tự động điền",
+      "optionalNotes": "Ghi chú tùy chọn"
+    },
+    "messages": {
+      "transactionAdded": "Đã thêm giao dịch thành công!",
+      "boughtWithUsdt": "Đã mua {quantity} {symbol} bằng {amount} USDT!",
+      "failedToAdd": "Không thể thêm giao dịch",
+      "fillRequired": "Vui lòng điền các trường bắt buộc",
+      "insufficientUsdt": "Không đủ số dư USDT. Bạn có {balance} USDT nhưng cần {required} USDT"
+    }
+  }
+}

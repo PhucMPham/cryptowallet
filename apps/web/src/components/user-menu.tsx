@@ -9,8 +9,7 @@ import {
 import { authClient } from "@/lib/auth-client";
 import { Button } from "./ui/button";
 import { Skeleton } from "./ui/skeleton";
-import { useRouter } from "next/navigation";
-import Link from "next/link";
+import {Link, useRouter} from "@/navigation";
 
 export default function UserMenu() {
 	const router = useRouter();

@@ -910,12 +910,17 @@ export const cryptoRouter = router({
 		const totalValue = assetsWithPrices.reduce((sum, asset) => sum + (asset.currentValue || 0), 0);
 		const totalPnL = assetsWithPrices.reduce((sum, asset) => sum + (asset.unrealizedPL || 0), 0);
 
+		// Calculate USDT balance (current holdings of USDT)
+		const usdtAsset = assetsWithPrices.find(asset => asset.asset.symbol === 'USDT');
+		const usdtBalance = usdtAsset?.totalQuantity || 0;
+
 		return {
 			assets: assetsWithPrices,
 			portfolio: {
 				...portfolio,
 				totalValue,
 				totalPnL,
+				usdtBalance,
 				vnd: {
 					totalInvested: portfolio.totalInvested * vndConversion.usdToVnd,
 					totalSold: portfolio.totalSold * vndConversion.usdToVnd,

@@ -52,6 +52,30 @@
       "insufficientUsdt": "Không đủ số dư USDT. Bạn có {balance} USDT nhưng cần {required} USDT"
     }
   },
+  "cryptoDetail": {
+    "assetNotFound": "Không tìm thấy tài sản",
+    "backToPortfolio": "Quay lại danh mục",
+    "currentPrice": "Giá hiện tại",
+    "24h": "24h",
+    "holdings": "Số lượng nắm giữ",
+    "avgBuyPrice": "Giá mua trung bình",
+    "unrealizedPL": "Lãi/Lỗ chưa thực hiện",
+    "transactionHistory": "Lịch sử giao dịch",
+    "all": "Tất cả",
+    "buys": "Mua",
+    "sells": "Bán",
+    "buy": "Mua",
+    "sell": "Bán",
+    "noTransactions": "Không có giao dịch {type}",
+    "date": "Ngày",
+    "type": "Loại",
+    "quantity": "Số lượng",
+    "price": "Giá",
+    "total": "Tổng",
+    "fee": "Phí",
+    "source": "Nguồn",
+    "exchange": "Sàn"
+  },
   "navigation": {
     "home": "Trang Chủ",
     "dashboard": "Bảng Điều Khiển",

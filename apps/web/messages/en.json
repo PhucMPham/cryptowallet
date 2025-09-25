@@ -52,6 +52,30 @@
       "insufficientUsdt": "Insufficient USDT balance. You have {balance} USDT but need {required} USDT"
     }
   },
+  "cryptoDetail": {
+    "assetNotFound": "Asset not found",
+    "backToPortfolio": "Back to portfolio",
+    "currentPrice": "Current Price",
+    "24h": "24h",
+    "holdings": "Holdings",
+    "avgBuyPrice": "Average Buy Price",
+    "unrealizedPL": "Unrealized P&L",
+    "transactionHistory": "Transaction History",
+    "all": "All",
+    "buys": "Buys",
+    "sells": "Sells",
+    "buy": "Buy",
+    "sell": "Sell",
+    "noTransactions": "No {type} transactions",
+    "date": "Date",
+    "type": "Type",
+    "quantity": "Quantity",
+    "price": "Price",
+    "total": "Total",
+    "fee": "Fee",
+    "source": "Source",
+    "exchange": "Exchange"
+  },
   "navigation": {
     "home": "Home",
     "dashboard": "Dashboard",

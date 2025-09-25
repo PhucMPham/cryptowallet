@@ -1039,6 +1039,143 @@ export const cryptoRouter = router({
 				];
 			}
 		}),
+
+	// Get asset details by ID
+	getAssetById: publicProcedure
+		.input(z.object({ id: z.number() }))
+		.query(async ({ input }) => {
+			// CoinMarketCap IDs for common cryptocurrencies (for logo URLs)
+			const cryptoIdMap: Record<string, number> = {
+				BTC: 1,
+				ETH: 1027,
+				USDT: 825,
+				BNB: 1839,
+				XRP: 52,
+				SOL: 5426,
+				USDC: 3408,
+				ADA: 2010,
+				DOGE: 74,
+				AVAX: 5805,
+				TRX: 1958,
+				DOT: 6636,
+				LINK: 1975,
+				MATIC: 3890,
+				POLYGON: 3890,
+				POL: 3890,
+			};
+
+			const assetData = await db
+				.select({
+					asset: cryptoAsset,
+					totalQuantity: sql<number>`
+						COALESCE(SUM(
+							CASE
+								WHEN ${cryptoTransaction.type} = 'buy' THEN ${cryptoTransaction.quantity}
+								WHEN ${cryptoTransaction.type} = 'sell' THEN -${cryptoTransaction.quantity}
+								ELSE 0
+							END
+						), 0)`.as("total_quantity"),
+					totalInvested: sql<number>`
+						COALESCE(SUM(
+							CASE
+								WHEN ${cryptoTransaction.type} = 'buy' THEN ${cryptoTransaction.totalAmount} + COALESCE(${cryptoTransaction.fee}, 0)
+								ELSE 0
+							END
+						), 0)`.as("total_invested"),
+					totalSold: sql<number>`
+						COALESCE(SUM(
+							CASE
+								WHEN ${cryptoTransaction.type} = 'sell' THEN ${cryptoTransaction.totalAmount} - COALESCE(${cryptoTransaction.fee}, 0)
+								ELSE 0
+							END
+						), 0)`.as("total_sold"),
+					avgBuyPrice: sql<number>`
+						CASE
+							WHEN SUM(CASE WHEN ${cryptoTransaction.type} = 'buy' THEN ${cryptoTransaction.quantity} ELSE 0 END) > 0
+							THEN SUM(CASE WHEN ${cryptoTransaction.type} = 'buy' THEN ${cryptoTransaction.totalAmount} ELSE 0 END) /
+								 SUM(CASE WHEN ${cryptoTransaction.type} = 'buy' THEN ${cryptoTransaction.quantity} ELSE 0 END)
+							ELSE 0
+						END`.as("avg_buy_price"),
+				})
+				.from(cryptoAsset)
+				.leftJoin(cryptoTransaction, eq(cryptoAsset.id, cryptoTransaction.assetId))
+				.where(eq(cryptoAsset.id, input.id))
+				.groupBy(cryptoAsset.id);
+
+			if (!assetData || assetData.length === 0) {
+				return null;
+			}
+
+			const item = assetData[0];
+
+			// Get current price
+			let currentPrice = null;
+			let priceChange24h = null;
+			try {
+				const prices = await priceService.getPrices([item.asset.symbol]);
+				currentPrice = prices[item.asset.symbol] || null;
+
+				// Try to get 24h price change from CoinMarketCap if configured
+				if (coinMarketCapService.isConfigured()) {
+					const cryptoData = await coinMarketCapService.getCryptocurrencyData([item.asset.symbol]);
+					if (cryptoData && cryptoData.length > 0) {
+						priceChange24h = cryptoData[0].quote.USD.percent_change_24h;
+					}
+				}
+			} catch (error) {
+				console.error("Error fetching price data:", error);
+			}
+
+			// Get VND conversion rate
+			const vndConversion = await CurrencyService.getUsdToVndRate();
+
+			// Calculate values
+			const currentValue = currentPrice && item.totalQuantity > 0
+				? currentPrice * item.totalQuantity
+				: 0;
+			const netInvested = item.totalInvested - item.totalSold;
+			const unrealizedPL = currentValue > 0 ? currentValue - netInvested : 0;
+			const unrealizedPLPercent = netInvested > 0
+				? (unrealizedPL / netInvested) * 100
+				: 0;
+
+			// Get logo URL
+			const cryptoId = cryptoIdMap[item.asset.symbol.toUpperCase()];
+			const logoUrl = cryptoId
+				? `https://s2.coinmarketcap.com/static/img/coins/64x64/${cryptoId}.png`
+				: null;
+
+			return {
+				...item,
+				currentPrice,
+				priceChange24h,
+				currentValue,
+				unrealizedPL,
+				unrealizedPLPercent,
+				logoUrl,
+				vnd: {
+					currentPrice: currentPrice ? currentPrice * vndConversion.usdToVnd : null,
+					currentValue: currentValue * vndConversion.usdToVnd,
+					avgBuyPrice: item.avgBuyPrice * vndConversion.usdToVnd,
+					unrealizedPL: unrealizedPL * vndConversion.usdToVnd,
+					totalInvested: item.totalInvested * vndConversion.usdToVnd,
+					totalSold: item.totalSold * vndConversion.usdToVnd,
+				},
+			};
+		}),
+
+	// Get transactions by asset ID
+	getTransactionsByAssetId: publicProcedure
+		.input(z.object({ assetId: z.number() }))
+		.query(async ({ input }) => {
+			const transactions = await db
+				.select()
+				.from(cryptoTransaction)
+				.where(eq(cryptoTransaction.assetId, input.assetId))
+				.orderBy(desc(cryptoTransaction.transactionDate));
+
+			return transactions;
+		}),
 });
 
 export type CryptoRouter = typeof cryptoRouter;

@@ -5,6 +5,20 @@
     "p2pRate": "Tỷ giá P2P",
     "addTransaction": "Thêm Giao Dịch",
     "addNewTransaction": "Thêm Giao Dịch Mới",
+    "totalInvested": "Tổng Đã Đầu Tư",
+    "totalSold": "Tổng Đã Bán",
+    "netInvested": "Đầu Tư Ròng",
+    "totalAssets": "Tổng Tài Sản",
+    "yourCryptoAssets": "Tài Sản Crypto Của Bạn",
+    "symbol": "Mã",
+    "namePrice": "Tên / Giá",
+    "holdings": "Số Lượng Nắm Giữ",
+    "avgBuyPrice": "Giá Mua TB",
+    "currentValue": "Giá Trị Hiện Tại",
+    "profitLoss": "Lãi/Lỗ",
+    "plPercent": "% L/L",
+    "viewDetails": "Xem Chi Tiết",
+    "noAssetsFound": "Không tìm thấy tài sản. Thêm giao dịch đầu tiên để bắt đầu.",
     "form": {
       "symbol": "Mã",
       "name": "Tên",
@@ -37,5 +51,18 @@
       "fillRequired": "Vui lòng điền các trường bắt buộc",
       "insufficientUsdt": "Không đủ số dư USDT. Bạn có {balance} USDT nhưng cần {required} USDT"
     }
+  },
+  "navigation": {
+    "home": "Trang Chủ",
+    "dashboard": "Bảng Điều Khiển",
+    "crypto": "Crypto",
+    "p2p": "P2P",
+    "signIn": "Đăng Nhập",
+    "signOut": "Đăng Xuất",
+    "myAccount": "Tài Khoản Của Tôi",
+    "toggleTheme": "Chuyển Chủ Đề",
+    "light": "Sáng",
+    "dark": "Tối",
+    "system": "Hệ Thống"
   }
 }

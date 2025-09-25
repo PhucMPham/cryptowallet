@@ -5,6 +5,20 @@
     "p2pRate": "P2P Rate",
     "addTransaction": "Add Transaction",
     "addNewTransaction": "Add New Transaction",
+    "totalInvested": "Total Invested",
+    "totalSold": "Total Sold",
+    "netInvested": "Net Invested",
+    "totalAssets": "Total Assets",
+    "yourCryptoAssets": "Your Crypto Assets",
+    "symbol": "Symbol",
+    "namePrice": "Name / Price",
+    "holdings": "Holdings",
+    "avgBuyPrice": "Avg Buy Price",
+    "currentValue": "Current Value",
+    "profitLoss": "Profit/Loss",
+    "plPercent": "P&L %",
+    "viewDetails": "View Details",
+    "noAssetsFound": "No assets found. Add your first transaction to get started.",
     "form": {
       "symbol": "Symbol",
       "name": "Name",
@@ -37,5 +51,18 @@
       "fillRequired": "Please fill in required fields",
       "insufficientUsdt": "Insufficient USDT balance. You have {balance} USDT but need {required} USDT"
     }
+  },
+  "navigation": {
+    "home": "Home",
+    "dashboard": "Dashboard",
+    "crypto": "Crypto",
+    "p2p": "P2P",
+    "signIn": "Sign In",
+    "signOut": "Sign Out",
+    "myAccount": "My Account",
+    "toggleTheme": "Toggle Theme",
+    "light": "Light",
+    "dark": "Dark",
+    "system": "System"
   }
 }

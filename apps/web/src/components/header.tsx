@@ -1,14 +1,16 @@
 "use client";
 import {Link} from "@/navigation";
+import { useTranslations } from 'next-intl';
 import { ModeToggle } from "./mode-toggle";
 import UserMenu from "./user-menu";
 
 export default function Header() {
+	const t = useTranslations('navigation');
 	const links = [
-		{ to: "/", label: "Home" },
-		{ to: "/dashboard", label: "Dashboard" },
-		{ to: "/crypto", label: "Crypto" },
-		{ to: "/p2p", label: "P2P" },
+		{ to: "/", label: t('home') },
+		{ to: "/dashboard", label: t('dashboard') },
+		{ to: "/crypto", label: t('crypto') },
+		{ to: "/p2p", label: t('p2p') },
 	] as const;
 
 	return (

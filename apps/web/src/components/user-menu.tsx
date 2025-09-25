@@ -7,11 +7,13 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { authClient } from "@/lib/auth-client";
+import { useTranslations } from 'next-intl';
 import { Button } from "./ui/button";
 import { Skeleton } from "./ui/skeleton";
 import {Link, useRouter} from "@/navigation";
 
 export default function UserMenu() {
+	const t = useTranslations('navigation');
 	const router = useRouter();
 	const { data: session, isPending } = authClient.useSession();
 
@@ -22,7 +24,7 @@ export default function UserMenu() {
 	if (!session) {
 		return (
 			<Button variant="outline" asChild>
-				<Link href="/login">Sign In</Link>
+				<Link href="/login">{t('signIn')}</Link>
 			</Button>
 		);
 	}
@@ -33,7 +35,7 @@ export default function UserMenu() {
 				<Button variant="outline">{session.user.name}</Button>
 			</DropdownMenuTrigger>
 			<DropdownMenuContent className="bg-card">
-				<DropdownMenuLabel>My Account</DropdownMenuLabel>
+				<DropdownMenuLabel>{t('myAccount')}</DropdownMenuLabel>
 				<DropdownMenuSeparator />
 				<DropdownMenuItem>{session.user.email}</DropdownMenuItem>
 				<DropdownMenuItem asChild>
@@ -50,7 +52,7 @@ export default function UserMenu() {
 							});
 						}}
 					>
-						Sign Out
+						{t('signOut')}
 					</Button>
 				</DropdownMenuItem>
 			</DropdownMenuContent>

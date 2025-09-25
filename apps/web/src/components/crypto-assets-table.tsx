@@ -3,6 +3,7 @@
 import { memo, useMemo } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useRef } from "react";
+import { useTranslations } from 'next-intl';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCurrency, formatVnd, formatNumber, formatPercent } from "@/utils/formatters";
@@ -35,6 +36,7 @@ interface CryptoAssetsTableProps {
 }
 
 const AssetRow = memo(({ item, onViewDetails }: { item: AssetItem; onViewDetails: (id: number) => void }) => {
+  const t = useTranslations('crypto');
   const isProfitable = item.unrealizedPL > 0;
   const hasHoldings = item.totalQuantity > 0;
 
@@ -143,7 +145,7 @@ const AssetRow = memo(({ item, onViewDetails }: { item: AssetItem; onViewDetails
           size="sm"
           onClick={() => onViewDetails(item.asset.id)}
         >
-          View Details
+          {t('viewDetails')}
         </Button>
       </div>
     </div>
@@ -153,6 +155,7 @@ const AssetRow = memo(({ item, onViewDetails }: { item: AssetItem; onViewDetails
 AssetRow.displayName = "AssetRow";
 
 export const CryptoAssetsTable = memo(({ assets, onViewDetails }: CryptoAssetsTableProps) => {
+  const t = useTranslations('crypto');
   const parentRef = useRef<HTMLDivElement>(null);
 
   const rowVirtualizer = useVirtualizer({
@@ -168,11 +171,11 @@ export const CryptoAssetsTable = memo(({ assets, onViewDetails }: CryptoAssetsTa
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Your Crypto Assets</CardTitle>
+          <CardTitle>{t('yourCryptoAssets')}</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="text-center text-muted-foreground py-8">
-            No assets found. Add your first transaction to get started.
+            {t('noAssetsFound')}
           </div>
         </CardContent>
       </Card>
@@ -182,18 +185,18 @@ export const CryptoAssetsTable = memo(({ assets, onViewDetails }: CryptoAssetsTa
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Your Crypto Assets</CardTitle>
+        <CardTitle>{t('yourCryptoAssets')}</CardTitle>
       </CardHeader>
       <CardContent>
         <div className="border rounded-lg">
           <div className="flex items-center border-b bg-muted/50 py-3 px-2 text-sm font-medium">
-            <div className="w-[150px]">Symbol</div>
-            <div className="w-[200px]">Name / Price</div>
-            <div className="w-[100px] text-right">Holdings</div>
-            <div className="w-[150px] text-right">Avg Buy Price</div>
-            <div className="w-[150px] text-right">Current Value</div>
-            <div className="w-[150px] text-right">Profit/Loss</div>
-            <div className="w-[100px] text-right">P&L %</div>
+            <div className="w-[150px]">{t('symbol')}</div>
+            <div className="w-[200px]">{t('namePrice')}</div>
+            <div className="w-[100px] text-right">{t('holdings')}</div>
+            <div className="w-[150px] text-right">{t('avgBuyPrice')}</div>
+            <div className="w-[150px] text-right">{t('currentValue')}</div>
+            <div className="w-[150px] text-right">{t('profitLoss')}</div>
+            <div className="w-[100px] text-right">{t('plPercent')}</div>
             <div className="w-[120px]"></div>
           </div>
 

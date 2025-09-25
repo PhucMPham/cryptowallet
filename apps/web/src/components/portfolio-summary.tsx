@@ -1,6 +1,7 @@
 "use client";
 
 import { memo } from "react";
+import { useTranslations } from 'next-intl';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCurrency, formatVnd } from "@/utils/formatters";
 import { DollarSign, TrendingUp, TrendingDown, Wallet } from "lucide-react";
@@ -60,12 +61,13 @@ const SummaryCard = memo(({
 SummaryCard.displayName = "SummaryCard";
 
 export const PortfolioSummary = memo(({ portfolio, isLoading }: PortfolioSummaryProps) => {
+  const t = useTranslations('crypto');
   const netInvested = portfolio ? portfolio.totalInvested - portfolio.totalSold : 0;
 
   return (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
       <SummaryCard
-        title="Total Invested"
+        title={t('totalInvested')}
         value={formatVnd(portfolio?.vnd?.totalInvested || 0)}
         subValue={formatCurrency(portfolio?.totalInvested || 0)}
         icon={DollarSign}
@@ -73,7 +75,7 @@ export const PortfolioSummary = memo(({ portfolio, isLoading }: PortfolioSummary
       />
 
       <SummaryCard
-        title="Total Sold"
+        title={t('totalSold')}
         value={formatVnd(portfolio?.vnd?.totalSold || 0)}
         subValue={formatCurrency(portfolio?.totalSold || 0)}
         icon={TrendingUp}
@@ -81,7 +83,7 @@ export const PortfolioSummary = memo(({ portfolio, isLoading }: PortfolioSummary
       />
 
       <SummaryCard
-        title="Net Invested"
+        title={t('netInvested')}
         value={formatVnd(portfolio?.vnd?.netInvested || 0)}
         subValue={formatCurrency(netInvested)}
         icon={Wallet}
@@ -89,7 +91,7 @@ export const PortfolioSummary = memo(({ portfolio, isLoading }: PortfolioSummary
       />
 
       <SummaryCard
-        title="Total Assets"
+        title={t('totalAssets')}
         value={portfolio?.assetCount || 0}
         icon={TrendingDown}
         isLoading={isLoading}

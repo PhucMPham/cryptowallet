@@ -3,6 +3,7 @@ import {Link} from "@/navigation";
 import { useTranslations } from 'next-intl';
 import { ModeToggle } from "./mode-toggle";
 import UserMenu from "./user-menu";
+import LanguageSwitcher from "./language-switcher";
 
 export default function Header() {
 	const t = useTranslations('navigation');
@@ -26,6 +27,7 @@ export default function Header() {
 					})}
 				</nav>
 				<div className="flex items-center gap-2">
+					<LanguageSwitcher />
 					<ModeToggle />
 					<UserMenu />
 				</div>

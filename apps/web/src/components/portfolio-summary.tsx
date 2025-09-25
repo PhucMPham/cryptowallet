@@ -4,17 +4,23 @@ import { memo } from "react";
 import { useTranslations } from 'next-intl';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCurrency, formatVnd } from "@/utils/formatters";
-import { DollarSign, TrendingUp, TrendingDown, Wallet } from "lucide-react";
+import { DollarSign, TrendingUp, TrendingDown, Wallet, CreditCard } from "lucide-react";
 
 interface PortfolioSummaryProps {
   portfolio?: {
     totalInvested: number;
     totalSold: number;
+    totalCryptoSold: number;
+    usdtUsedForPayments: number;
     assetCount: number;
+    totalValue?: number;
     vnd?: {
       totalInvested: number;
       totalSold: number;
+      totalCryptoSold: number;
+      usdtUsedForPayments: number;
       netInvested: number;
+      totalValue?: number;
     };
   };
   isLoading?: boolean;
@@ -35,8 +41,8 @@ const SummaryCard = memo(({
 }) => (
   <Card>
     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-      <CardTitle className="text-sm font-medium">{title}</CardTitle>
-      <Icon className="h-4 w-4 text-muted-foreground" />
+      <CardTitle className="text-sm font-medium whitespace-nowrap overflow-hidden text-ellipsis flex-1 mr-2">{title}</CardTitle>
+      <Icon className="h-4 w-4 text-muted-foreground flex-shrink-0" />
     </CardHeader>
     <CardContent>
       {isLoading ? (
@@ -65,7 +71,7 @@ export const PortfolioSummary = memo(({ portfolio, isLoading }: PortfolioSummary
   const netInvested = portfolio ? portfolio.totalInvested - portfolio.totalSold : 0;
 
   return (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
       <SummaryCard
         title={t('totalInvested')}
         value={formatVnd(portfolio?.vnd?.totalInvested || 0)}
@@ -75,10 +81,18 @@ export const PortfolioSummary = memo(({ portfolio, isLoading }: PortfolioSummary
       />
 
       <SummaryCard
-        title={t('totalSold')}
-        value={formatVnd(portfolio?.vnd?.totalSold || 0)}
-        subValue={formatCurrency(portfolio?.totalSold || 0)}
+        title={t('totalCryptoSold')}
+        value={formatVnd(portfolio?.vnd?.totalCryptoSold || 0)}
+        subValue={formatCurrency(portfolio?.totalCryptoSold || 0)}
         icon={TrendingUp}
+        isLoading={isLoading}
+      />
+
+      <SummaryCard
+        title={t('usdtUsedForPayments')}
+        value={formatVnd(portfolio?.vnd?.usdtUsedForPayments || 0)}
+        subValue={formatCurrency(portfolio?.usdtUsedForPayments || 0)}
+        icon={CreditCard}
         isLoading={isLoading}
       />
 
@@ -91,8 +105,9 @@ export const PortfolioSummary = memo(({ portfolio, isLoading }: PortfolioSummary
       />
 
       <SummaryCard
-        title={t('totalAssets')}
-        value={portfolio?.assetCount || 0}
+        title={t('totalValue')}
+        value={formatVnd(portfolio?.vnd?.totalValue || 0)}
+        subValue={formatCurrency(portfolio?.totalValue || 0)}
         icon={TrendingDown}
         isLoading={isLoading}
       />

@@ -190,13 +190,13 @@ export const CryptoAssetsTable = memo(({ assets, onViewDetails }: CryptoAssetsTa
       <CardContent>
         <div className="border rounded-lg">
           <div className="flex items-center border-b bg-muted/50 py-3 px-2 text-sm font-medium">
-            <div className="w-[150px]">{t('symbol')}</div>
-            <div className="w-[200px]">{t('namePrice')}</div>
-            <div className="w-[100px] text-right">{t('holdings')}</div>
-            <div className="w-[150px] text-right">{t('avgBuyPrice')}</div>
-            <div className="w-[150px] text-right">{t('currentValue')}</div>
-            <div className="w-[150px] text-right">{t('profitLoss')}</div>
-            <div className="w-[100px] text-right">{t('plPercent')}</div>
+            <div className="w-[150px] whitespace-nowrap">{t('symbol')}</div>
+            <div className="w-[200px] whitespace-nowrap">{t('namePrice')}</div>
+            <div className="w-[100px] text-right whitespace-nowrap">{t('holdings')}</div>
+            <div className="w-[150px] text-right whitespace-nowrap">{t('avgBuyPrice')}</div>
+            <div className="w-[150px] text-right whitespace-nowrap">{t('currentValue')}</div>
+            <div className="w-[150px] text-right whitespace-nowrap">{t('profitLoss')}</div>
+            <div className="w-[100px] text-right whitespace-nowrap">{t('plPercent')}</div>
             <div className="w-[120px]"></div>
           </div>
 

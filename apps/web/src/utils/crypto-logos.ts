@@ -59,6 +59,8 @@ const CMC_IDS: Record<string, number> = {
   FLOW: 4558,
   THETA: 2416,
   XTZ: 2011,
+  ASTR: 12885, // Astar Network
+  ASTER: 33988, // Aster DEX
   SNX: 2586,
   WLD: 13502,
   RNDR: 5690,

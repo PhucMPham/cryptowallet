@@ -1,0 +1,193 @@
+
+> dev
+> turbo dev
+
+turbo 2.5.6
+
+• Packages in scope: server, web
+• Running dev in 2 packages
+• Remote caching disabled
+server:dev: cache bypass, force executing b030ab10e26f70a5
+web:dev: cache bypass, force executing 9727cefa7cd72937
+server:dev: $ bun run --hot src/index.ts
+web:dev: $ next dev --turbopack --port=3001
+server:dev: Started development server: http://localhost:3003
+web:dev:  ⚠ Warning: Next.js inferred your workspace root, but it may not be correct.
+web:dev:  We detected multiple lockfiles and selected the directory of /Users/phamminhphuc/package-lock.json as the root directory.
+web:dev:  To silence this warning, set `turbopack.root` in your Next.js config, or consider removing one of the lockfiles if it's not needed.
+web:dev:    See https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#root-directory for more information.
+web:dev:  Detected additional lockfiles: 
+web:dev:    * /Users/phamminhphuc/Projects/cryptowallet/bun.lock
+web:dev: 
+web:dev:    ▲ Next.js 15.5.0 (Turbopack)
+web:dev:    - Local:        http://localhost:3001
+web:dev:    - Network:      http://192.168.1.36:3001
+web:dev:    - Environments: .env
+web:dev: 
+web:dev:  ✓ Starting...
+web:dev:  ✓ Compiled middleware in 404ms
+web:dev:  ✓ Ready in 1153ms
+server:dev: <-- GET /
+server:dev: --> GET / [32m200[0m 0ms
+web:dev:  ○ Compiling /[locale]/crypto ...
+web:dev:  ✓ Compiled /[locale]/crypto in 1697ms
+web:dev: [locale/layout] rendering locale layout { locale: 'vi', availableLocales: [ 'en', 'vi' ] }
+web:dev:  GET /vi/crypto 200 in 2175ms
+server:dev: <-- GET /api/auth/get-session
+server:dev: --> GET /api/auth/get-session [32m200[0m 4ms
+server:dev: <-- GET /trpc/crypto.getDashboardData?batch=1&input=%7B%7D
+web:dev:  ✓ Compiled /favicon.ico in 92ms
+web:dev:  GET /favicon.ico?favicon.0b3bf435.ico 200 in 347ms
+web:dev:  GET /favicon.ico?favicon.0b3bf435.ico 200 in 228ms
+server:dev: Updated CoinMarketCap symbol mappings: 497 symbols cached
+server:dev: --> GET /trpc/crypto.getDashboardData?batch=1&input=%7B%7D [32m200[0m 3s
+server:dev: <-- GET /trpc/crypto.getDashboardData?batch=1&input=%7B%7D
+server:dev: No CoinGecko ID mapping for symbol: STBL
+server:dev: No CoinGecko ID mapping for symbol: ASTER
+server:dev: --> GET /trpc/crypto.getDashboardData?batch=1&input=%7B%7D [32m200[0m 310ms
+server:dev: <-- GET /trpc/crypto.getDashboardData?batch=1&input=%7B%7D
+server:dev: --> GET /trpc/crypto.getDashboardData?batch=1&input=%7B%7D [32m200[0m 357ms
+web:dev: [locale/layout] rendering locale layout { locale: 'vi', availableLocales: [ 'en', 'vi' ] }
+web:dev:  GET /vi/crypto 200 in 71ms
+server:dev: <-- GET /api/auth/get-session
+server:dev: --> GET /api/auth/get-session [32m200[0m 0ms
+server:dev: <-- GET /trpc/crypto.getDashboardData?batch=1&input=%7B%7D
+server:dev: --> GET /trpc/crypto.getDashboardData?batch=1&input=%7B%7D [32m200[0m 1ms
+web:dev:  GET /favicon.ico?favicon.0b3bf435.ico 200 in 225ms
+web:dev:  GET /favicon.ico?favicon.0b3bf435.ico 200 in 227ms
+web:dev: [locale/layout] rendering locale layout { locale: 'vi', availableLocales: [ 'en', 'vi' ] }
+web:dev:  GET /vi/crypto 200 in 75ms
+server:dev: <-- GET /api/auth/get-session
+server:dev: --> GET /api/auth/get-session [32m200[0m 1ms
+server:dev: <-- GET /trpc/crypto.getDashboardData?batch=1&input=%7B%7D
+server:dev: --> GET /trpc/crypto.getDashboardData?batch=1&input=%7B%7D [32m200[0m 1ms
+web:dev:  GET /favicon.ico?favicon.0b3bf435.ico 200 in 225ms
+web:dev:  GET /favicon.ico?favicon.0b3bf435.ico 200 in 223ms
+server:dev: <-- GET /trpc/crypto.getDashboardData?batch=1&input=%7B%7D
+server:dev: --> GET /trpc/crypto.getDashboardData?batch=1&input=%7B%7D [32m200[0m 344ms
+server:dev: Started development server: http://localhost:3003
+web:dev:  ✓ Compiled in 41ms
+web:dev:  ✓ Compiled in 35ms
+web:dev: [locale/layout] rendering locale layout { locale: 'vi', availableLocales: [ 'en', 'vi' ] }
+web:dev:  GET /vi/crypto 200 in 219ms
+web:dev: [locale/layout] rendering locale layout { locale: 'vi', availableLocales: [ 'en', 'vi' ] }
+web:dev:  GET /vi/crypto 200 in 83ms
+server:dev: <-- GET /trpc/crypto.getDashboardData?batch=1&input=%7B%7D
+server:dev: <-- GET /api/auth/get-session
+server:dev: --> GET /api/auth/get-session [32m200[0m 1ms
+web:dev:  GET /favicon.ico?favicon.0b3bf435.ico 200 in 224ms
+web:dev:  GET /favicon.ico?favicon.0b3bf435.ico 200 in 239ms
+server:dev: Updated CoinMarketCap symbol mappings: 497 symbols cached
+server:dev: --> GET /trpc/crypto.getDashboardData?batch=1&input=%7B%7D [32m200[0m 3s
+web:dev:  ○ Compiling /[locale]/p2p ...
+web:dev:  ✓ Compiled /[locale]/p2p in 529ms
+web:dev:  GET /vi/p2p 200 in 779ms
+server:dev: <-- GET /trpc/p2p.getTransactions,p2p.getPortfolioSummary?batch=1&input=%7B%220%22%3A%7B%22crypto%22%3A%22USDT%22%2C%22fiatCurrency%22%3A%22VND%22%7D%2C%221%22%3A%7B%22crypto%22%3A%22USDT%22%2C%22fiatCurrency%22%3A%22VND%22%7D%7D
+server:dev: --> GET /trpc/p2p.getTransactions,p2p.getPortfolioSummary?batch=1&input=%7B%220%22%3A%7B%22crypto%22%3A%22USDT%22%2C%22fiatCurrency%22%3A%22VND%22%7D%2C%221%22%3A%7B%22crypto%22%3A%22USDT%22%2C%22fiatCurrency%22%3A%22VND%22%7D%7D [32m200[0m 6ms
+web:dev:  GET /vi/crypto 200 in 40ms
+server:dev: <-- GET /trpc/crypto.getDashboardData?batch=1&input=%7B%7D
+server:dev: --> GET /trpc/crypto.getDashboardData?batch=1&input=%7B%7D [32m200[0m 864ms
+web:dev:  ✓ Compiled /[locale]/crypto/[id] in 237ms
+web:dev:  GET /vi/crypto/10 200 in 508ms
+server:dev: <-- GET /trpc/crypto.getAssetById,crypto.getTransactionsByAssetId?batch=1&input=%7B%220%22%3A%7B%22id%22%3A10%7D%2C%221%22%3A%7B%22assetId%22%3A10%7D%7D
+server:dev: --> GET /trpc/crypto.getAssetById,crypto.getTransactionsByAssetId?batch=1&input=%7B%220%22%3A%7B%22id%22%3A10%7D%2C%221%22%3A%7B%22assetId%22%3A10%7D%7D [32m200[0m 323ms
+server:dev: <-- GET /trpc/crypto.getDashboardData?batch=1&input=%7B%7D
+server:dev: --> GET /trpc/crypto.getDashboardData?batch=1&input=%7B%7D [32m200[0m 352ms
+server:dev: Started development server: http://localhost:3003
+server:dev: Started development server: http://localhost:3003
+server:dev: Started development server: http://localhost:3003
+server:dev: <-- GET /trpc/crypto.getDashboardData?batch=1&input=%7B%7D
+server:dev: --> GET /trpc/crypto.getDashboardData?batch=1&input=%7B%7D [31m500[0m 8ms
+server:dev: <-- GET /trpc/crypto.getDashboardData?batch=1&input=%7B%7D
+server:dev: --> GET /trpc/crypto.getDashboardData?batch=1&input=%7B%7D [31m500[0m 1ms
+server:dev: <-- GET /trpc/crypto.getDashboardData?batch=1&input=%7B%7D
+server:dev: --> GET /trpc/crypto.getDashboardData?batch=1&input=%7B%7D [31m500[0m 2ms
+server:dev: <-- GET /trpc/crypto.getDashboardData?batch=1&input=%7B%7D
+server:dev: --> GET /trpc/crypto.getDashboardData?batch=1&input=%7B%7D [31m500[0m 2ms
+server:dev: <-- GET /trpc/crypto.getDashboardData?batch=1&input=%7B%7D
+server:dev: --> GET /trpc/crypto.getDashboardData?batch=1&input=%7B%7D [31m500[0m 3ms
+server:dev: <-- GET /trpc/crypto.getDashboardData?batch=1&input=%7B%7D
+server:dev: --> GET /trpc/crypto.getDashboardData?batch=1&input=%7B%7D [31m500[0m 2ms
+server:dev: <-- GET /trpc/crypto.getDashboardData?batch=1&input=%7B%7D
+server:dev: --> GET /trpc/crypto.getDashboardData?batch=1&input=%7B%7D [31m500[0m 3ms
+server:dev: <-- GET /trpc/crypto.getDashboardData?batch=1&input=%7B%7D
+server:dev: --> GET /trpc/crypto.getDashboardData?batch=1&input=%7B%7D [31m500[0m 3ms
+server:dev: Started development server: http://localhost:3003
+server:dev: Started development server: http://localhost:3003
+server:dev: <-- GET /trpc/crypto.getDashboardData?batch=1&input=%7B%7D
+web:dev: [locale/layout] rendering locale layout { locale: 'vi', availableLocales: [ 'en', 'vi' ] }
+web:dev:  GET /vi/crypto 200 in 80ms
+server:dev: <-- GET /api/auth/get-session
+server:dev: --> GET /api/auth/get-session [32m200[0m 1ms
+server:dev: <-- GET /trpc/crypto.getDashboardData?batch=1&input=%7B%7D
+web:dev:  GET /favicon.ico?favicon.0b3bf435.ico 200 in 234ms
+server:dev: Updated CoinMarketCap symbol mappings: 497 symbols cached
+web:dev:  GET /favicon.ico?favicon.0b3bf435.ico 200 in 222ms
+server:dev: --> GET /trpc/crypto.getDashboardData?batch=1&input=%7B%7D [32m200[0m 2s
+server:dev: Updated CoinMarketCap symbol mappings: 497 symbols cached
+server:dev: --> GET /trpc/crypto.getDashboardData?batch=1&input=%7B%7D [32m200[0m 1s
+server:dev: <-- GET /trpc/crypto.getDashboardData?batch=1&input=%7B%7D
+server:dev: --> GET /trpc/crypto.getDashboardData?batch=1&input=%7B%7D [32m200[0m 670ms
+web:dev:  GET /vi/p2p 200 in 30ms
+server:dev: <-- GET /trpc/p2p.getTransactions,p2p.getPortfolioSummary?batch=1&input=%7B%220%22%3A%7B%22crypto%22%3A%22USDT%22%2C%22fiatCurrency%22%3A%22VND%22%7D%2C%221%22%3A%7B%22crypto%22%3A%22USDT%22%2C%22fiatCurrency%22%3A%22VND%22%7D%7D
+server:dev: --> GET /trpc/p2p.getTransactions,p2p.getPortfolioSummary?batch=1&input=%7B%220%22%3A%7B%22crypto%22%3A%22USDT%22%2C%22fiatCurrency%22%3A%22VND%22%7D%2C%221%22%3A%7B%22crypto%22%3A%22USDT%22%2C%22fiatCurrency%22%3A%22VND%22%7D%7D [32m200[0m 3ms
+web:dev:  GET /vi/crypto 200 in 34ms
+server:dev: <-- GET /trpc/crypto.getDashboardData?batch=1&input=%7B%7D
+server:dev: --> GET /trpc/crypto.getDashboardData?batch=1&input=%7B%7D [32m200[0m 349ms
+server:dev: <-- POST /trpc/crypto.addTransaction
+server:dev: --> POST /trpc/crypto.addTransaction [33m400[0m 2ms
+server:dev: <-- GET /trpc/crypto.getDashboardData?batch=1&input=%7B%7D
+server:dev: --> GET /trpc/crypto.getDashboardData?batch=1&input=%7B%7D [32m200[0m 317ms
+server:dev: <-- GET /trpc/crypto.getDashboardData?batch=1&input=%7B%7D
+server:dev: --> GET /trpc/crypto.getDashboardData?batch=1&input=%7B%7D [32m200[0m 948ms
+web:dev: [locale/layout] rendering locale layout { locale: 'vi', availableLocales: [ 'en', 'vi' ] }
+web:dev:  GET /vi/crypto 200 in 59ms
+server:dev: <-- GET /trpc/crypto.getDashboardData?batch=1&input=%7B%7D
+server:dev: --> GET /trpc/crypto.getDashboardData?batch=1&input=%7B%7D [32m200[0m 405ms
+server:dev: <-- GET /trpc/crypto.getDashboardData?batch=1&input=%7B%7D
+server:dev: --> GET /trpc/crypto.getDashboardData?batch=1&input=%7B%7D [32m200[0m 405ms
+server:dev: <-- GET /trpc/crypto.getDashboardData?batch=1&input=%7B%7D
+server:dev: --> GET /trpc/crypto.getDashboardData?batch=1&input=%7B%7D [32m200[0m 922ms
+server:dev: <-- GET /trpc/crypto.getDashboardData?batch=1&input=%7B%7D
+server:dev: --> GET /trpc/crypto.getDashboardData?batch=1&input=%7B%7D [32m200[0m 350ms
+server:dev: <-- GET /trpc/crypto.getDashboardData?batch=1&input=%7B%7D
+server:dev: --> GET /trpc/crypto.getDashboardData?batch=1&input=%7B%7D [32m200[0m 970ms
+server:dev: <-- GET /trpc/crypto.getDashboardData?batch=1&input=%7B%7D
+server:dev: --> GET /trpc/crypto.getDashboardData?batch=1&input=%7B%7D [32m200[0m 348ms
+server:dev: <-- GET /trpc/crypto.getDashboardData?batch=1&input=%7B%7D
+server:dev: --> GET /trpc/crypto.getDashboardData?batch=1&input=%7B%7D [32m200[0m 358ms
+server:dev: <-- GET /trpc/crypto.getDashboardData?batch=1&input=%7B%7D
+server:dev: --> GET /trpc/crypto.getDashboardData?batch=1&input=%7B%7D [32m200[0m 916ms
+server:dev: <-- GET /trpc/crypto.getDashboardData?batch=1&input=%7B%7D
+server:dev: --> GET /trpc/crypto.getDashboardData?batch=1&input=%7B%7D [32m200[0m 405ms
+server:dev: <-- GET /trpc/crypto.getDashboardData?batch=1&input=%7B%7D
+server:dev: --> GET /trpc/crypto.getDashboardData?batch=1&input=%7B%7D [32m200[0m 404ms
+web:dev: [locale/layout] rendering locale layout { locale: 'vi', availableLocales: [ 'en', 'vi' ] }
+web:dev:  GET /vi/crypto 200 in 95ms
+server:dev: <-- GET /api/auth/get-session
+server:dev: --> GET /api/auth/get-session [32m200[0m 1ms
+server:dev: <-- GET /trpc/crypto.getDashboardData?batch=1&input=%7B%7D
+server:dev: --> GET /trpc/crypto.getDashboardData?batch=1&input=%7B%7D [32m200[0m 2ms
+web:dev:  GET /favicon.ico?favicon.0b3bf435.ico 200 in 224ms
+web:dev:  GET /favicon.ico?favicon.0b3bf435.ico 200 in 221ms
+web:dev:  GET /vi/crypto 200 in 41ms
+server:dev: Started development server: http://localhost:3003
+server:dev: Started development server: http://localhost:3003
+server:dev: <-- GET /trpc/crypto.getDashboardData?batch=1&input=%7B%7D
+server:dev: Updated CoinMarketCap symbol mappings: 497 symbols cached
+web:dev: [locale/layout] rendering locale layout { locale: 'vi', availableLocales: [ 'en', 'vi' ] }
+web:dev:  GET /vi/crypto 200 in 75ms
+server:dev: <-- GET /api/auth/get-session
+server:dev: --> GET /api/auth/get-session [32m200[0m 2ms
+server:dev: <-- GET /trpc/crypto.getDashboardData?batch=1&input=%7B%7D
+web:dev:  GET /favicon.ico?favicon.0b3bf435.ico 200 in 228ms
+web:dev:  GET /favicon.ico?favicon.0b3bf435.ico 200 in 229ms
+server:dev: --> GET /trpc/crypto.getDashboardData?batch=1&input=%7B%7D [32m200[0m 830ms
+server:dev: --> GET /trpc/crypto.getDashboardData?batch=1&input=%7B%7D [32m200[0m 4s
+web:dev:  ✓ Compiled /_not-found/page in 163ms
+web:dev:  GET /api/dashboard/1 404 in 211ms
+web:dev:  GET /api/dashboard/1 404 in 36ms
+server:dev: error: script "dev" was terminated by signal SIGKILL (Forced quit)
+web:dev: [?25h
+  x Internal errors encountered: external process killed a task
+

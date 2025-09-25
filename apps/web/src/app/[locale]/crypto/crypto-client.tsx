@@ -386,7 +386,7 @@ export default function CryptoClient() {
 			</div>
 
 			{/* Portfolio Summary */}
-			<PortfolioSummary />
+			<PortfolioSummary portfolio={dashboardData?.portfolio} />
 
 			{/* Crypto Assets Table */}
 			<CryptoAssetsTable

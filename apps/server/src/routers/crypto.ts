@@ -1,11 +1,119 @@
 import z from "zod";
 import { router, publicProcedure, protectedProcedure } from "../lib/trpc";
 import { cryptoAsset, cryptoTransaction } from "../db/schema/crypto";
+import { p2pTransaction } from "../db/schema/p2p";
 import { eq, and, desc, sql } from "drizzle-orm";
 import { db } from "../db";
 import { priceService } from "../services/priceService";
 import { coinMarketCapService } from "../services/coinmarketcapService";
 import { CurrencyService } from "../services/currencyService";
+
+// Helper function to get USDT average buy price from P2P transactions
+async function getUsdtP2PAvgPrice(): Promise<number> {
+	try {
+		const result = await db
+			.select({
+				totalUsdt: sql<number>`SUM(${p2pTransaction.cryptoAmount})`,
+				totalVnd: sql<number>`SUM(${p2pTransaction.fiatAmount})`,
+			})
+			.from(p2pTransaction)
+			.where(
+				and(
+					eq(p2pTransaction.type, "buy"),
+					eq(p2pTransaction.crypto, "USDT")
+				)
+			)
+			.limit(1);
+
+		const { totalUsdt, totalVnd } = result[0] || { totalUsdt: 0, totalVnd: 0 };
+
+		if (!totalUsdt || totalUsdt <= 0) {
+			return 0; // No P2P data available
+		}
+
+		// Calculate weighted average VND per USDT
+		const avgVndPerUsdt = totalVnd / totalUsdt;
+		
+		// Get current USD to VND rate to convert to USD
+		const vndConversion = await CurrencyService.getUsdToVndRate();
+		const avgUsdPerUsdt = avgVndPerUsdt / vndConversion.usdToVnd;
+		
+		return avgUsdPerUsdt;
+	} catch (error) {
+		console.error("Error calculating USDT P2P average price:", error);
+		return 0; // Fallback to 0 if calculation fails
+	}
+}
+
+// Helper function to get USDT P2P profit/loss
+async function getUsdtP2PProfitLoss(): Promise<{ unrealizedPL: number; unrealizedPLVnd: number }> {
+	try {
+		// Get P2P buy data
+		const buyResult = await db
+			.select({
+				totalUsdt: sql<number>`SUM(${p2pTransaction.cryptoAmount})`,
+				totalVnd: sql<number>`SUM(${p2pTransaction.fiatAmount})`,
+			})
+			.from(p2pTransaction)
+			.where(
+				and(
+					eq(p2pTransaction.type, "buy"),
+					eq(p2pTransaction.crypto, "USDT")
+				)
+			)
+			.limit(1);
+
+		// Get P2P sell data
+		const sellResult = await db
+			.select({
+				totalUsdt: sql<number>`SUM(${p2pTransaction.cryptoAmount})`,
+				totalVnd: sql<number>`SUM(${p2pTransaction.fiatAmount})`,
+			})
+			.from(p2pTransaction)
+			.where(
+				and(
+					eq(p2pTransaction.type, "sell"),
+					eq(p2pTransaction.crypto, "USDT")
+				)
+			)
+			.limit(1);
+
+		const { totalUsdt: boughtUsdt, totalVnd: spentVnd } = buyResult[0] || { totalUsdt: 0, totalVnd: 0 };
+		const { totalUsdt: soldUsdt, totalVnd: receivedVnd } = sellResult[0] || { totalUsdt: 0, totalVnd: 0 };
+
+		if (!boughtUsdt || boughtUsdt <= 0) {
+			return { unrealizedPL: 0, unrealizedPLVnd: 0 };
+		}
+
+		// Current holdings
+		const currentUsdt = boughtUsdt - (soldUsdt || 0);
+		
+		// Get current exchange rate
+		const vndConversion = await CurrencyService.getUsdToVndRate();
+		const currentRate = vndConversion.usdToVnd; // Current VND per USD
+		
+		// Calculate P2P profit/loss in VND
+		const totalInvestedVnd = spentVnd;
+		const avgBuyRate = spentVnd / boughtUsdt; // VND per USDT when bought
+		
+		// Current value of holdings at current market rate (VND per USD, not VND per USDT)
+		// Since USDT ≈ 1 USD, current value = currentUsdt * currentRate
+		const currentValueVnd = currentUsdt * currentRate;
+		
+		// Add any profit from sold USDT
+		const soldProfitVnd = (receivedVnd || 0) - (soldUsdt || 0) * avgBuyRate;
+		const totalCurrentValueVnd = currentValueVnd + (receivedVnd || 0);
+		
+		// Unrealized P&L = Current Value - Original Investment
+		const unrealizedPLVnd = totalCurrentValueVnd - totalInvestedVnd;
+		const unrealizedPL = unrealizedPLVnd / vndConversion.usdToVnd;
+
+		return { unrealizedPL, unrealizedPLVnd };
+	} catch (error) {
+		console.error("Error calculating USDT P2P profit/loss:", error);
+		return { unrealizedPL: 0, unrealizedPLVnd: 0 };
+	}
+}
 
 export const cryptoRouter = router({
 	// Get all assets for user
@@ -448,12 +556,14 @@ export const cryptoRouter = router({
 					type: input.type,
 					quantity: input.quantity,
 					pricePerUnit: input.pricePerUnit,
-					totalAmount, // Always record the actual total amount
-					fee: feeInUSD, // Always record the actual fee
+					totalAmount: input.paymentSource === "USDT" ? 0 : totalAmount, // Set to 0 if paid with USDT
+					fee: input.paymentSource === "USDT" ? 0 : feeInUSD, // Set to 0 if paid with USDT
 					feeCurrency: input.feeCurrency || "USD",
 					feeInCrypto,
 					exchange: input.exchange,
-					notes: input.notes || undefined,
+					notes: input.paymentSource === "USDT"
+						? `${input.notes ? input.notes + " - " : ""}Purchased with USDT`
+						: input.notes || undefined,
 					transactionDate,
 					userId: ctx.session?.user?.id,
 				})
@@ -764,7 +874,7 @@ export const cryptoRouter = router({
 	// Optimized endpoint for dashboard - fetches portfolio and assets in parallel
 	getDashboardData: publicProcedure.query(async ({ ctx }) => {
 		// Execute queries in parallel for better performance
-		const [assetsData, portfolioSummary, vndConversion] = await Promise.all([
+		const [assetsData, portfolioSummary, vndConversion, usdtP2PAvgPrice, usdtP2PProfitLoss] = await Promise.all([
 			// Get assets with aggregated data
 			db
 				.select({
@@ -816,6 +926,23 @@ export const cryptoRouter = router({
 								ELSE 0
 							END
 						), 0)`,
+					totalCryptoSold: sql<number>`
+						COALESCE(SUM(
+							CASE
+								WHEN ${cryptoTransaction.type} = 'sell' AND ${cryptoAsset.symbol} != 'USDT'
+								THEN ${cryptoTransaction.totalAmount} - COALESCE(${cryptoTransaction.fee}, 0)
+								ELSE 0
+							END
+						), 0)`,
+					usdtUsedForPayments: sql<number>`
+						COALESCE(SUM(
+							CASE
+								WHEN ${cryptoTransaction.type} = 'sell' AND ${cryptoAsset.symbol} = 'USDT'
+								THEN ${cryptoTransaction.totalAmount} - COALESCE(${cryptoTransaction.fee}, 0)
+								ELSE 0
+							END
+						), 0)`,
+					// Keep legacy totalSold for backward compatibility
 					totalSold: sql<number>`
 						COALESCE(SUM(
 							CASE
@@ -830,10 +957,17 @@ export const cryptoRouter = router({
 					assetCount: sql<number>`COUNT(DISTINCT ${cryptoTransaction.assetId})`,
 				})
 				.from(cryptoTransaction)
+				.leftJoin(cryptoAsset, eq(cryptoTransaction.assetId, cryptoAsset.id))
 				.limit(1),
 
 			// Get VND conversion rate
 			CurrencyService.getUsdToVndRate(),
+			
+			// Get USDT P2P average price
+			getUsdtP2PAvgPrice(),
+			
+			// Get USDT P2P profit/loss
+			getUsdtP2PProfitLoss(),
 		]);
 
 		// Get unique symbols for price fetching
@@ -849,18 +983,8 @@ export const cryptoRouter = router({
 			}
 		}
 
-		// CoinMarketCap IDs for logos
-		const cryptoIdMap: Record<string, number> = {
-			BTC: 1, ETH: 1027, USDT: 825, BNB: 1839, XRP: 52, SOL: 5426,
-			USDC: 3408, ADA: 2010, DOGE: 74, AVAX: 5805, TRX: 1958,
-			DOT: 6636, LINK: 1975, MATIC: 3890, POLYGON: 3890, POL: 3890,
-			TON: 11419, ICP: 8916, SHIB: 5994, LTC: 2, BCH: 1831,
-			UNI: 7083, ATOM: 3794, XLM: 512, ETC: 1321, FIL: 2280,
-			APT: 21794, ARB: 11841, OP: 11840, VET: 3077, HBAR: 4642,
-			NEAR: 6535, GRT: 6719, ALGO: 4030, FTM: 3513, SAND: 6210,
-			MANA: 1966, AXS: 6783, AAVE: 7278, CRV: 6538, SUSHI: 6758,
-			CAKE: 7186, XTZ: 2011,
-		};
+		// Fetch logos for all symbols
+		const symbolLogos = await coinMarketCapService.getBatchMetadata(symbols);
 
 		// Process assets with prices and VND values
 		const assetsWithPrices = assetsData.map(item => {
@@ -874,23 +998,33 @@ export const cryptoRouter = router({
 				? (unrealizedPL / netInvested) * 100
 				: 0;
 
-			const cryptoId = cryptoIdMap[item.asset.symbol.toUpperCase()];
-			const logoUrl = cryptoId
-				? `https://s2.coinmarketcap.com/static/img/coins/64x64/${cryptoId}.png`
-				: null;
+			// Get logo URL from metadata service
+			const metadata = symbolLogos.get(item.asset.symbol.toUpperCase());
+			const logoUrl = metadata?.logoUrl || null;
+			
+			// Use P2P average price for USDT, otherwise use crypto transaction average
+			const finalAvgBuyPrice = item.asset.symbol === 'USDT' ? usdtP2PAvgPrice : item.avgBuyPrice;
+			
+			// Use P2P profit/loss for USDT, otherwise use calculated P&L
+			const finalUnrealizedPL = item.asset.symbol === 'USDT' ? usdtP2PProfitLoss.unrealizedPL : unrealizedPL;
+			const finalUnrealizedPLVnd = item.asset.symbol === 'USDT' ? usdtP2PProfitLoss.unrealizedPLVnd : unrealizedPL * vndConversion.usdToVnd;
+			const finalUnrealizedPLPercent = item.asset.symbol === 'USDT' && item.totalInvested > 0
+				? (finalUnrealizedPL / item.totalInvested) * 100
+				: unrealizedPLPercent;
 
 			return {
 				...item,
+				avgBuyPrice: finalAvgBuyPrice, // Override avgBuyPrice for USDT
 				currentPrice,
 				currentValue,
-				unrealizedPL,
-				unrealizedPLPercent,
+				unrealizedPL: finalUnrealizedPL, // Override P&L for USDT
+				unrealizedPLPercent: finalUnrealizedPLPercent, // Override P&L % for USDT
 				logoUrl,
 				vnd: {
 					currentPrice: currentPrice ? currentPrice * vndConversion.usdToVnd : null,
 					currentValue: currentValue * vndConversion.usdToVnd,
-					avgBuyPrice: item.avgBuyPrice * vndConversion.usdToVnd,
-					unrealizedPL: unrealizedPL * vndConversion.usdToVnd,
+					avgBuyPrice: finalAvgBuyPrice * vndConversion.usdToVnd, // Use finalAvgBuyPrice for VND conversion too
+					unrealizedPL: finalUnrealizedPLVnd, // Use P2P P&L VND for USDT
 					totalInvested: item.totalInvested * vndConversion.usdToVnd,
 					totalSold: item.totalSold * vndConversion.usdToVnd,
 				}
@@ -901,6 +1035,8 @@ export const cryptoRouter = router({
 		const portfolio = portfolioSummary[0] || {
 			totalInvested: 0,
 			totalSold: 0,
+			totalCryptoSold: 0,
+			usdtUsedForPayments: 0,
 			totalFees: 0,
 			transactionCount: 0,
 			assetCount: 0,
@@ -924,6 +1060,8 @@ export const cryptoRouter = router({
 				vnd: {
 					totalInvested: portfolio.totalInvested * vndConversion.usdToVnd,
 					totalSold: portfolio.totalSold * vndConversion.usdToVnd,
+					totalCryptoSold: portfolio.totalCryptoSold * vndConversion.usdToVnd,
+					usdtUsedForPayments: portfolio.usdtUsedForPayments * vndConversion.usdToVnd,
 					totalFees: portfolio.totalFees * vndConversion.usdToVnd,
 					netInvested: (portfolio.totalInvested - portfolio.totalSold) * vndConversion.usdToVnd,
 					totalValue: totalValue * vndConversion.usdToVnd,

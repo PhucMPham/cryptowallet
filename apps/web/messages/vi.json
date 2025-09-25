@@ -79,6 +79,101 @@
     "source": "Nguồn",
     "exchange": "Sàn"
   },
+  "p2p": {
+    "title": "Giao Dịch P2P",
+    "description": "Theo dõi giao dịch mua USDT P2P và tính toán lãi/lỗ",
+    "addTransaction": "Thêm Giao Dịch",
+    "portfolioSummary": {
+      "usdtBalance": "Số Dư USDT",
+      "totalBought": "Tổng đã mua",
+      "averageBuyPrice": "Giá Mua Trung Bình",
+      "current": "Hiện tại",
+      "currentValueVnd": "Giá Trị Hiện Tại (VNĐ)",
+      "costBasis": "Giá vốn",
+      "profitLoss": "Lãi/Lỗ (Nếu Bán Ngay)"
+    },
+    "transactionHistory": {
+      "title": "Lịch Sử Giao Dịch",
+      "description": "Tất cả giao dịch P2P {crypto}/{fiat} của bạn",
+      "date": "Ngày",
+      "type": "Loại",
+      "amount": "Số Lượng",
+      "rate": "Tỷ Giá",
+      "total": "Tổng",
+      "platform": "Nền Tảng",
+      "counterparty": "Đối Tác",
+      "actions": "Hành Động",
+      "buy": "MUA",
+      "sell": "BÁN"
+    },
+    "actions": {
+      "viewDetails": "Xem Chi Tiết",
+      "edit": "Sửa",
+      "delete": "Xóa",
+      "confirmDelete": "Bạn có chắc chắn muốn xóa giao dịch này không?"
+    },
+    "details": {
+      "bank": "Ngân hàng",
+      "payment": "Thanh toán",
+      "transactionId": "Mã GD",
+      "notes": "Ghi chú"
+    },
+    "dialog": {
+      "addTitle": "Thêm Giao Dịch P2P",
+      "editTitle": "Sửa Giao Dịch P2P",
+      "addDescription": "Ghi lại giao dịch mua/bán USDT P2P với tỷ giá VNĐ",
+      "editDescription": "Cập nhật chi tiết giao dịch USDT P2P",
+      "transactionType": "Loại Giao Dịch",
+      "buy": "Mua",
+      "sell": "Bán",
+      "selectType": "Chọn loại",
+      "transactionDate": "Ngày Giao Dịch",
+      "pickDate": "Chọn ngày",
+      "usdtAmount": "Số Lượng USDT",
+      "autoCalculated": "(tự động tính)",
+      "vndAmount": "Số Tiền VNĐ",
+      "exchangeRate": "Tỷ Giá (VNĐ/USDT)",
+      "exchangeRateDescription": "Nhập tỷ giá hoặc sẽ được tự động tính",
+      "exchangeRateDisplay": "1 USDT = {rate} ₫",
+      "platform": "Nền Tảng",
+      "selectPlatform": "Chọn nền tảng",
+      "paymentMethod": "Phương Thức Thanh Toán",
+      "selectMethod": "Chọn phương thức",
+      "bankName": "Tên Ngân Hàng (Tùy chọn)",
+      "bankPlaceholder": "VD: Vietcombank, Techcombank",
+      "counterparty": "Đối Tác (Tùy chọn)",
+      "counterpartyPlaceholder": "Tên người bán/mua",
+      "transactionId": "Mã Giao Dịch (Tùy chọn)",
+      "transactionIdPlaceholder": "Mã tham chiếu hoặc đơn hàng",
+      "notes": "Ghi Chú (Tùy chọn)",
+      "notesPlaceholder": "Thêm ghi chú bổ sung...",
+      "cancel": "Hủy",
+      "addButton": "Thêm Giao Dịch",
+      "updateButton": "Cập Nhật Giao Dịch",
+      "adding": "Đang thêm...",
+      "updating": "Đang cập nhật..."
+    },
+    "platforms": {
+      "binanceP2P": "Binance P2P",
+      "okxP2P": "OKX P2P",
+      "bybitP2P": "Bybit P2P",
+      "huobiP2P": "Huobi P2P",
+      "otc": "OTC",
+      "other": "Khác"
+    },
+    "paymentMethods": {
+      "bankTransfer": "Chuyển Khoản",
+      "cash": "Tiền Mặt",
+      "eWallet": "Ví Điện Tử",
+      "other": "Khác"
+    },
+    "messages": {
+      "addSuccess": "Đã thêm giao dịch P2P thành công",
+      "updateSuccess": "Đã cập nhật giao dịch P2P thành công",
+      "addError": "Không thể thêm giao dịch",
+      "updateError": "Không thể cập nhật giao dịch"
+    }
+  },
   "navigation": {
     "home": "Trang Chủ",
     "dashboard": "Bảng Điều Khiển",

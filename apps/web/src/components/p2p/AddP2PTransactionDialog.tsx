@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { useTranslations } from 'next-intl';
 import { api } from "@/utils/api";
 import { Button } from "@/components/ui/button";
 import {
@@ -73,6 +74,7 @@ export function AddP2PTransactionDialog({
   onSuccess,
   editTransaction,
 }: AddP2PTransactionDialogProps) {
+  const t = useTranslations('p2p');
   const [isCalculating, setIsCalculating] = useState(false);
   const [autoCalculatedField, setAutoCalculatedField] = useState<"cryptoAmount" | "exchangeRate" | null>(null);
   const programmaticUpdateRef = useRef<string | null>(null);
@@ -100,7 +102,7 @@ export function AddP2PTransactionDialog({
     onSuccess: () => {
       toast({
         title: "Success",
-        description: "P2P transaction added successfully",
+        description: t('messages.addSuccess'),
       });
       form.reset();
       onOpenChange(false);
@@ -109,7 +111,7 @@ export function AddP2PTransactionDialog({
     onError: (error) => {
       toast({
         title: "Error",
-        description: error.message || "Failed to add transaction",
+        description: error.message || t('messages.addError'),
         variant: "destructive",
       });
     },
@@ -119,7 +121,7 @@ export function AddP2PTransactionDialog({
     onSuccess: () => {
       toast({
         title: "Success",
-        description: "P2P transaction updated successfully",
+        description: t('messages.updateSuccess'),
       });
       form.reset();
       onOpenChange(false);
@@ -128,7 +130,7 @@ export function AddP2PTransactionDialog({
     onError: (error) => {
       toast({
         title: "Error",
-        description: error.message || "Failed to update transaction",
+        description: error.message || t('messages.updateError'),
         variant: "destructive",
       });
     },
@@ -266,9 +268,9 @@ export function AddP2PTransactionDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
-          <DialogTitle>{editTransaction ? "Edit P2P Transaction" : "Add P2P Transaction"}</DialogTitle>
+          <DialogTitle>{editTransaction ? t('dialog.editTitle') : t('dialog.addTitle')}</DialogTitle>
           <DialogDescription>
-            {editTransaction ? "Update your P2P USDT transaction details" : "Record your P2P USDT purchase or sale with VND exchange rate"}
+            {editTransaction ? t('dialog.editDescription') : t('dialog.addDescription')}
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
@@ -279,16 +281,16 @@ export function AddP2PTransactionDialog({
                 name="type"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Transaction Type</FormLabel>
+                    <FormLabel>{t('dialog.transactionType')}</FormLabel>
                     <Select onValueChange={field.onChange} defaultValue={field.value}>
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder="Select type" />
+                          <SelectValue placeholder={t('dialog.selectType')} />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="buy">Buy</SelectItem>
-                        <SelectItem value="sell">Sell</SelectItem>
+                        <SelectItem value="buy">{t('dialog.buy')}</SelectItem>
+                        <SelectItem value="sell">{t('dialog.sell')}</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -301,7 +303,7 @@ export function AddP2PTransactionDialog({
                 name="transactionDate"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Transaction Date</FormLabel>
+                    <FormLabel>{t('dialog.transactionDate')}</FormLabel>
                     <Popover>
                       <PopoverTrigger asChild>
                         <FormControl>
@@ -315,7 +317,7 @@ export function AddP2PTransactionDialog({
                             {field.value ? (
                               format(field.value, "PPP")
                             ) : (
-                              <span>Pick a date</span>
+                              <span>{t('dialog.pickDate')}</span>
                             )}
                             <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                           </Button>
@@ -343,10 +345,10 @@ export function AddP2PTransactionDialog({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>
-                      USDT Amount
+                      {t('dialog.usdtAmount')}
                       {autoCalculatedField === "cryptoAmount" && (
                         <span className="ml-2 text-xs text-muted-foreground">
-                          (auto-calculated)
+                          {t('dialog.autoCalculated')}
                         </span>
                       )}
                     </FormLabel>
@@ -377,7 +379,7 @@ export function AddP2PTransactionDialog({
                 name="fiatAmount"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>VND Amount</FormLabel>
+                    <FormLabel>{t('dialog.vndAmount')}</FormLabel>
                     <FormControl>
                       <FormattedInput
                         placeholder="25.000.000"
@@ -407,10 +409,10 @@ export function AddP2PTransactionDialog({
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>
-                    Exchange Rate (VND/USDT)
+                    {t('dialog.exchangeRate')}
                     {autoCalculatedField === "exchangeRate" && (
                       <span className="ml-2 text-xs text-muted-foreground">
-                        (auto-calculated)
+                        {t('dialog.autoCalculated')}
                       </span>
                     )}
                   </FormLabel>
@@ -428,9 +430,9 @@ export function AddP2PTransactionDialog({
                   </FormControl>
                   <FormDescription>
                     {field.value && parseFormattedNumber(field.value) > 0 ? (
-                      <>1 USDT = {parseFormattedNumber(field.value).toLocaleString("vi-VN")} ₫</>
+                      <>{t('dialog.exchangeRateDisplay', { rate: parseFormattedNumber(field.value).toLocaleString("vi-VN") })}</>
                     ) : (
-                      "Enter exchange rate or it will be auto-calculated"
+                      t('dialog.exchangeRateDescription')
                     )}
                   </FormDescription>
                   <FormMessage />
@@ -444,20 +446,20 @@ export function AddP2PTransactionDialog({
                 name="platform"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Platform</FormLabel>
+                    <FormLabel>{t('dialog.platform')}</FormLabel>
                     <Select onValueChange={field.onChange} defaultValue={field.value}>
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder="Select platform" />
+                          <SelectValue placeholder={t('dialog.selectPlatform')} />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="Binance P2P">Binance P2P</SelectItem>
-                        <SelectItem value="OKX P2P">OKX P2P</SelectItem>
-                        <SelectItem value="Bybit P2P">Bybit P2P</SelectItem>
-                        <SelectItem value="Huobi P2P">Huobi P2P</SelectItem>
-                        <SelectItem value="OTC">OTC</SelectItem>
-                        <SelectItem value="Other">Other</SelectItem>
+                        <SelectItem value="Binance P2P">{t('platforms.binanceP2P')}</SelectItem>
+                        <SelectItem value="OKX P2P">{t('platforms.okxP2P')}</SelectItem>
+                        <SelectItem value="Bybit P2P">{t('platforms.bybitP2P')}</SelectItem>
+                        <SelectItem value="Huobi P2P">{t('platforms.huobiP2P')}</SelectItem>
+                        <SelectItem value="OTC">{t('platforms.otc')}</SelectItem>
+                        <SelectItem value="Other">{t('platforms.other')}</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -470,18 +472,18 @@ export function AddP2PTransactionDialog({
                 name="paymentMethod"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Payment Method</FormLabel>
+                    <FormLabel>{t('dialog.paymentMethod')}</FormLabel>
                     <Select onValueChange={field.onChange} defaultValue={field.value}>
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder="Select method" />
+                          <SelectValue placeholder={t('dialog.selectMethod')} />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="Bank Transfer">Bank Transfer</SelectItem>
-                        <SelectItem value="Cash">Cash</SelectItem>
-                        <SelectItem value="E-wallet">E-wallet</SelectItem>
-                        <SelectItem value="Other">Other</SelectItem>
+                        <SelectItem value="Bank Transfer">{t('paymentMethods.bankTransfer')}</SelectItem>
+                        <SelectItem value="Cash">{t('paymentMethods.cash')}</SelectItem>
+                        <SelectItem value="E-wallet">{t('paymentMethods.eWallet')}</SelectItem>
+                        <SelectItem value="Other">{t('paymentMethods.other')}</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -496,9 +498,9 @@ export function AddP2PTransactionDialog({
                 name="bankName"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Bank Name (Optional)</FormLabel>
+                    <FormLabel>{t('dialog.bankName')}</FormLabel>
                     <FormControl>
-                      <Input placeholder="e.g., Vietcombank, Techcombank" value={field.value || ""} onChange={field.onChange} onBlur={field.onBlur} />
+                      <Input placeholder={t('dialog.bankPlaceholder')} value={field.value || ""} onChange={field.onChange} onBlur={field.onBlur} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -510,9 +512,9 @@ export function AddP2PTransactionDialog({
                 name="counterparty"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Counterparty (Optional)</FormLabel>
+                    <FormLabel>{t('dialog.counterparty')}</FormLabel>
                     <FormControl>
-                      <Input placeholder="Seller/Buyer name" value={field.value || ""} onChange={field.onChange} onBlur={field.onBlur} />
+                      <Input placeholder={t('dialog.counterpartyPlaceholder')} value={field.value || ""} onChange={field.onChange} onBlur={field.onBlur} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -525,9 +527,9 @@ export function AddP2PTransactionDialog({
               name="transactionId"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Transaction ID (Optional)</FormLabel>
+                  <FormLabel>{t('dialog.transactionId')}</FormLabel>
                   <FormControl>
-                    <Input placeholder="Reference or order ID" value={field.value || ""} onChange={field.onChange} onBlur={field.onBlur} />
+                    <Input placeholder={t('dialog.transactionIdPlaceholder')} value={field.value || ""} onChange={field.onChange} onBlur={field.onBlur} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -539,10 +541,10 @@ export function AddP2PTransactionDialog({
               name="notes"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Notes (Optional)</FormLabel>
+                  <FormLabel>{t('dialog.notes')}</FormLabel>
                   <FormControl>
                     <Textarea
-                      placeholder="Add any additional notes..."
+                      placeholder={t('dialog.notesPlaceholder')}
                       className="resize-none"
                       value={field.value || ""}
                       onChange={field.onChange}
@@ -560,12 +562,12 @@ export function AddP2PTransactionDialog({
                 variant="outline"
                 onClick={() => onOpenChange(false)}
               >
-                Cancel
+                {t('dialog.cancel')}
               </Button>
               <Button type="submit" disabled={addTransaction.isPending || updateTransaction.isPending}>
                 {editTransaction
-                  ? (updateTransaction.isPending ? "Updating..." : "Update Transaction")
-                  : (addTransaction.isPending ? "Adding..." : "Add Transaction")
+                  ? (updateTransaction.isPending ? t('dialog.updating') : t('dialog.updateButton'))
+                  : (addTransaction.isPending ? t('dialog.adding') : t('dialog.addButton'))
                 }
               </Button>
             </DialogFooter>

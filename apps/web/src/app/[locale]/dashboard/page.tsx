@@ -1,6 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from 'next-intl';
+import { useRouter } from '@/navigation';
+import { Link } from '@/navigation';
 import { api } from "@/utils/api";
 import { formatCurrency, formatVnd, formatPercent, formatCrypto } from "@/utils/formatters";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -30,8 +33,7 @@ import {
 	CheckCircle,
 } from "lucide-react";
 import { format } from "date-fns";
-import { getCryptoLogo } from "@/utils/crypto-logos";
-import Image from "next/image";
+import { LazyImage } from "@/components/lazy-image";
 import { PortfolioPieChart } from "@/components/portfolio-pie-chart";
 
 // Performance metrics calculation
@@ -61,7 +63,7 @@ const calculateMetrics = (portfolio: any, assets: any[], vndRate: number) => {
 	const validRoi = !isNaN(roi) && isFinite(roi) ? roi : 0;
 
 	// Calculate best and worst performers
-	const sortedAssets = [...(assets || [])].sort((a, b) => (b.pnlPercent || 0) - (a.pnlPercent || 0));
+	const sortedAssets = [...(assets || [])].sort((a, b) => (b.unrealizedPLPercent || 0) - (a.unrealizedPLPercent || 0));
 	const bestPerformer = sortedAssets[0];
 	const worstPerformer = sortedAssets[sortedAssets.length - 1];
 
@@ -129,6 +131,8 @@ const DashboardSkeleton = () => (
 );
 
 export default function DashboardPage() {
+	const t = useTranslations('dashboard');
+	const router = useRouter();
 	const [refreshing, setRefreshing] = useState(false);
 	const [showBalances, setShowBalances] = useState(true);
 	const [activeTab, setActiveTab] = useState("overview");
@@ -172,6 +176,12 @@ export default function DashboardPage() {
 		setTimeout(() => setRefreshing(false), 1000);
 	};
 
+	// Navigate to transaction page to view all transactions
+	const handleViewAllTransactions = () => {
+		console.log('View all transactions clicked!');
+		router.push('/transaction');
+	};
+
 	// Export report function
 	const exportReport = () => {
 		const report = {
@@ -211,9 +221,9 @@ export default function DashboardPage() {
 			{/* Header */}
 			<div className="flex items-center justify-between mb-6">
 				<div>
-					<h1 className="text-3xl font-bold">Portfolio Dashboard</h1>
+					<h1 className="text-3xl font-bold">{t('title')}</h1>
 					<p className="text-muted-foreground mt-1">
-						Comprehensive analysis and reporting of your investments
+						{t('description')}
 					</p>
 				</div>
 				<div className="flex items-center gap-3">
@@ -230,11 +240,11 @@ export default function DashboardPage() {
 						disabled={refreshing}
 					>
 						<RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
-						Refresh
+						{t('buttons.refresh')}
 					</Button>
 					<Button onClick={exportReport}>
 						<Download className="h-4 w-4 mr-2" />
-						Export Report
+						{t('buttons.exportReport')}
 					</Button>
 				</div>
 			</div>
@@ -245,11 +255,11 @@ export default function DashboardPage() {
 				<>
 					{/* Key Metrics Cards */}
 					<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-						<Card>
-							<CardHeader className="pb-3">
-								<CardTitle className="text-sm font-medium text-muted-foreground">
-									Total Portfolio Value
-								</CardTitle>
+					<Card>
+						<CardHeader className="pb-3">
+							<CardTitle className="text-sm font-medium text-muted-foreground">
+								{t('metrics.totalPortfolioValue')}
+							</CardTitle>
 							</CardHeader>
 							<CardContent>
 								<div className="text-2xl font-bold">
@@ -266,11 +276,11 @@ export default function DashboardPage() {
 							</CardContent>
 						</Card>
 
-						<Card>
-							<CardHeader className="pb-3">
-								<CardTitle className="text-sm font-medium text-muted-foreground">
-									Total P&L
-								</CardTitle>
+				<Card>
+					<CardHeader className="pb-3">
+						<CardTitle className="text-sm font-medium text-muted-foreground">
+							{t('metrics.totalPL')}
+						</CardTitle>
 							</CardHeader>
 							<CardContent>
 								<div className={`text-2xl font-bold ${metrics.totalPnLVND >= 0 ? 'text-green-600' : 'text-red-600'}`}>
@@ -289,11 +299,11 @@ export default function DashboardPage() {
 							</CardContent>
 						</Card>
 
-						<Card>
-							<CardHeader className="pb-3">
-								<CardTitle className="text-sm font-medium text-muted-foreground">
-									Diversification Score
-								</CardTitle>
+				<Card>
+					<CardHeader className="pb-3">
+						<CardTitle className="text-sm font-medium text-muted-foreground">
+							{t('metrics.diversificationScore')}
+						</CardTitle>
 							</CardHeader>
 							<CardContent>
 								<div className="text-2xl font-bold">{metrics.diversificationScore}/100</div>
@@ -308,55 +318,55 @@ export default function DashboardPage() {
 										/>
 									</div>
 								</div>
-								<p className="text-xs text-muted-foreground mt-1">
-									{metrics.diversificationScore > 70 ? 'Well Diversified' :
-									 metrics.diversificationScore > 40 ? 'Moderate' : 'Concentrated'}
-								</p>
+							<p className="text-xs text-muted-foreground mt-1">
+								{metrics.diversificationScore > 70 ? t('metrics.wellDiversified') :
+								 metrics.diversificationScore > 40 ? t('metrics.moderate') : t('metrics.concentrated')}
+							</p>
 							</CardContent>
 						</Card>
 
-						<Card>
-							<CardHeader className="pb-3">
-								<CardTitle className="text-sm font-medium text-muted-foreground">
-									Risk Level
-								</CardTitle>
-							</CardHeader>
-							<CardContent>
-								<div className="text-2xl font-bold">{metrics.volatility}</div>
-								<p className="text-xs text-muted-foreground mt-1">
-									Based on 24h price changes
-								</p>
-								<Badge
-									variant={metrics.volatility === "Low" ? "default" :
-									        metrics.volatility === "Medium" ? "secondary" : "destructive"}
-									className="mt-2"
-								>
-									{metrics.volatility === "Low" ? "Conservative" :
-									 metrics.volatility === "Medium" ? "Balanced" : "Aggressive"}
-								</Badge>
+				<Card>
+					<CardHeader className="pb-3">
+						<CardTitle className="text-sm font-medium text-muted-foreground">
+							{t('metrics.riskLevel')}
+						</CardTitle>
+					</CardHeader>
+					<CardContent>
+						<div className="text-2xl font-bold">{t(`riskLevels.${metrics.volatility.toLowerCase()}`)}</div>
+						<p className="text-xs text-muted-foreground mt-1">
+							{t('metrics.basedOn24h')}
+						</p>
+						<Badge
+							variant={metrics.volatility === "Low" ? "default" :
+							        metrics.volatility === "Medium" ? "secondary" : "destructive"}
+							className="mt-2"
+						>
+							{metrics.volatility === "Low" ? t('metrics.conservative') :
+							 metrics.volatility === "Medium" ? t('metrics.balanced') : t('metrics.aggressive')}
+						</Badge>
 							</CardContent>
 						</Card>
 					</div>
 
 					{/* Main Content Tabs */}
-					<Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-						<TabsList>
-							<TabsTrigger value="overview">Overview</TabsTrigger>
-							<TabsTrigger value="performance">Performance</TabsTrigger>
-							<TabsTrigger value="allocation">Allocation</TabsTrigger>
-							<TabsTrigger value="transactions">Transactions</TabsTrigger>
-							<TabsTrigger value="insights">Insights</TabsTrigger>
-						</TabsList>
+				<Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+					<TabsList>
+						<TabsTrigger value="overview">{t('tabs.overview')}</TabsTrigger>
+						<TabsTrigger value="performance">{t('tabs.performance')}</TabsTrigger>
+						<TabsTrigger value="allocation">{t('tabs.allocation')}</TabsTrigger>
+						<TabsTrigger value="transactions">{t('tabs.transactions')}</TabsTrigger>
+						<TabsTrigger value="insights">{t('tabs.insights')}</TabsTrigger>
+					</TabsList>
 
 						{/* Overview Tab */}
 						<TabsContent value="overview" className="space-y-4">
 							<div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-								{/* Portfolio Composition */}
-								<Card>
-									<CardHeader>
-										<CardTitle>Portfolio Composition</CardTitle>
-										<CardDescription>Asset allocation by value</CardDescription>
-									</CardHeader>
+						{/* Portfolio Composition */}
+						<Card>
+							<CardHeader>
+								<CardTitle>{t('overview.portfolioComposition.title')}</CardTitle>
+								<CardDescription>{t('overview.portfolioComposition.description')}</CardDescription>
+							</CardHeader>
 									<CardContent>
 										<PortfolioPieChart
 											assets={dashboardData?.assets || []}
@@ -366,20 +376,20 @@ export default function DashboardPage() {
 									</CardContent>
 								</Card>
 
-								{/* Top Performers */}
-								<Card>
-									<CardHeader>
-										<CardTitle>Performance Highlights</CardTitle>
-										<CardDescription>Best and worst performing assets</CardDescription>
-									</CardHeader>
+						{/* Top Performers */}
+						<Card>
+							<CardHeader>
+								<CardTitle>{t('overview.performanceHighlights.title')}</CardTitle>
+								<CardDescription>{t('overview.performanceHighlights.description')}</CardDescription>
+							</CardHeader>
 									<CardContent className="space-y-4">
 										{metrics.bestPerformer && (
 											<div className="p-4 border rounded-lg bg-green-50 border-green-200">
 												<div className="flex items-center justify-between">
 													<div className="flex items-center gap-3">
-														<TrendingUp className="h-5 w-5 text-green-600" />
-														<div>
-															<p className="font-medium">Best Performer</p>
+											<TrendingUp className="h-5 w-5 text-green-600" />
+											<div>
+												<p className="font-medium">{t('overview.performanceHighlights.bestPerformer')}</p>
 															<p className="text-sm text-muted-foreground">
 																{metrics.bestPerformer.asset.name}
 															</p>
@@ -387,26 +397,26 @@ export default function DashboardPage() {
 													</div>
 													<div className="text-right">
 														<p className="font-bold text-green-600">
-															{!isNaN(metrics.bestPerformer.pnlPercent) && isFinite(metrics.bestPerformer.pnlPercent) ?
-													'+' + formatPercent(metrics.bestPerformer.pnlPercent) :
-													'+N/A'
+															{!isNaN(metrics.bestPerformer.unrealizedPLPercent) && isFinite(metrics.bestPerformer.unrealizedPLPercent) ?
+													'+' + formatPercent(metrics.bestPerformer.unrealizedPLPercent) :
+													'+0.00%'
 												}
 														</p>
 														<p className="text-sm text-muted-foreground">
-															+{formatVnd(metrics.bestPerformer.pnl * vndRate)}
+															+{formatVnd(metrics.bestPerformer.unrealizedPL * vndRate)}
 														</p>
 													</div>
 												</div>
 											</div>
 										)}
 
-										{metrics.worstPerformer && metrics.worstPerformer.pnl < 0 && (
+										{metrics.worstPerformer && metrics.worstPerformer.unrealizedPL < 0 && (
 											<div className="p-4 border rounded-lg bg-red-50 border-red-200">
 												<div className="flex items-center justify-between">
 													<div className="flex items-center gap-3">
-														<TrendingDown className="h-5 w-5 text-red-600" />
-														<div>
-															<p className="font-medium">Worst Performer</p>
+											<TrendingDown className="h-5 w-5 text-red-600" />
+											<div>
+												<p className="font-medium">{t('overview.performanceHighlights.worstPerformer')}</p>
 															<p className="text-sm text-muted-foreground">
 																{metrics.worstPerformer.asset.name}
 															</p>
@@ -414,35 +424,35 @@ export default function DashboardPage() {
 													</div>
 													<div className="text-right">
 														<p className="font-bold text-red-600">
-															{!isNaN(metrics.worstPerformer.pnlPercent) && isFinite(metrics.worstPerformer.pnlPercent) ?
-													formatPercent(metrics.worstPerformer.pnlPercent) :
-													'N/A'
+															{!isNaN(metrics.worstPerformer.unrealizedPLPercent) && isFinite(metrics.worstPerformer.unrealizedPLPercent) ?
+													formatPercent(metrics.worstPerformer.unrealizedPLPercent) :
+													'0.00%'
 												}
 														</p>
 														<p className="text-sm text-muted-foreground">
-															{formatVnd(metrics.worstPerformer.pnl * vndRate)}
+															{formatVnd(metrics.worstPerformer.unrealizedPL * vndRate)}
 														</p>
 													</div>
 												</div>
 											</div>
 										)}
 
-										{/* Investment Summary */}
-										<div className="pt-4 border-t space-y-2">
-											<div className="flex justify-between">
-												<span className="text-sm text-muted-foreground">Total Invested</span>
+									{/* Investment Summary */}
+									<div className="pt-4 border-t space-y-2">
+										<div className="flex justify-between">
+											<span className="text-sm text-muted-foreground">{t('overview.investmentSummary.totalInvested')}</span>
 												<span className="font-medium">
 													{maskValue(formatVnd(totalInvestedVND))}
 												</span>
 											</div>
-											<div className="flex justify-between">
-												<span className="text-sm text-muted-foreground">Current Value</span>
-												<span className="font-medium">
-													{maskValue(formatVnd(totalPortfolioValueVND))}
-												</span>
-											</div>
-											<div className="flex justify-between">
-												<span className="text-sm text-muted-foreground">Total Return</span>
+										<div className="flex justify-between">
+											<span className="text-sm text-muted-foreground">{t('overview.investmentSummary.currentValue')}</span>
+											<span className="font-medium">
+												{maskValue(formatVnd(totalPortfolioValueVND))}
+											</span>
+										</div>
+										<div className="flex justify-between">
+											<span className="text-sm text-muted-foreground">{t('overview.investmentSummary.totalReturn')}</span>
 												<span className={`font-medium ${metrics.totalPnLVND >= 0 ? 'text-green-600' : 'text-red-600'}`}>
 													{metrics.totalPnLVND >= 0 ? '+' : ''}{maskValue(formatVnd(metrics.totalPnLVND))}
 												</span>
@@ -452,12 +462,12 @@ export default function DashboardPage() {
 								</Card>
 							</div>
 
-							{/* Recent Activity */}
-							<Card>
-								<CardHeader>
-									<CardTitle>Recent Activity</CardTitle>
-									<CardDescription>Latest transactions across all assets</CardDescription>
-								</CardHeader>
+					{/* Recent Activity */}
+					<Card>
+						<CardHeader>
+							<CardTitle>{t('overview.recentActivity.title')}</CardTitle>
+							<CardDescription>{t('overview.recentActivity.description')}</CardDescription>
+						</CardHeader>
 								<CardContent>
 									<div className="space-y-3">
 										{recentTransactions?.slice(0, 5).map((tx: any) => (
@@ -473,9 +483,9 @@ export default function DashboardPage() {
 														)}
 													</div>
 													<div>
-														<p className="font-medium">
-															{tx.type === "buy" ? "Bought" : "Sold"} {formatCrypto(tx.quantity)} {tx.asset?.symbol}
-														</p>
+											<p className="font-medium">
+												{tx.type === "buy" ? t('overview.recentActivity.bought') : t('overview.recentActivity.sold')} {formatCrypto(tx.quantity, tx.asset?.symbol)} {tx.asset?.symbol}
+											</p>
 														<p className="text-sm text-muted-foreground">
 															{format(new Date(tx.transactionDate), "MMM dd, yyyy HH:mm")}
 														</p>
@@ -492,48 +502,56 @@ export default function DashboardPage() {
 											</div>
 										))}
 									</div>
-									{recentTransactions && recentTransactions.length > 5 && (
-										<div className="text-center text-sm text-blue-600 hover:underline mt-4 pt-4 border-t">
-											View all transactions
-										</div>
-									)}
+							{recentTransactions && recentTransactions.length > 5 && (
+								<div className="mt-4 pt-4 border-t">
+									<Link 
+										href="/transaction"
+										className="block w-full py-2 px-4 text-center text-sm text-blue-600 hover:text-blue-700 hover:underline hover:bg-blue-50 transition-all duration-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1"
+									>
+										{t('overview.recentActivity.viewAllTransactions')}
+									</Link>
+								</div>
+							)}
 								</CardContent>
 							</Card>
 						</TabsContent>
 
-						{/* Performance Tab */}
-						<TabsContent value="performance" className="space-y-4">
-							<Card>
-								<CardHeader>
-									<CardTitle>Performance Analysis</CardTitle>
-									<CardDescription>Detailed performance metrics for each asset</CardDescription>
-								</CardHeader>
+					{/* Performance Tab */}
+					<TabsContent value="performance" className="space-y-4">
+						<Card>
+							<CardHeader>
+								<CardTitle>{t('performance.title')}</CardTitle>
+								<CardDescription>{t('performance.description')}</CardDescription>
+							</CardHeader>
 								<CardContent>
 									<div className="overflow-x-auto">
 										<table className="w-full">
-											<thead className="border-b">
-												<tr>
-													<th className="text-left py-2">Asset</th>
-													<th className="text-right py-2">Holdings</th>
-													<th className="text-right py-2">Avg Buy Price</th>
-													<th className="text-right py-2">Current Price</th>
-													<th className="text-right py-2">Current Value</th>
-													<th className="text-right py-2">P&L</th>
-													<th className="text-right py-2">P&L %</th>
-													<th className="text-right py-2">24h Change</th>
-												</tr>
-											</thead>
+									<thead className="border-b">
+										<tr>
+											<th className="text-left py-2">{t('performance.headers.asset')}</th>
+											<th className="text-right py-2">{t('performance.headers.holdings')}</th>
+											<th className="text-right py-2">{t('performance.headers.avgBuyPrice')}</th>
+											<th className="text-right py-2">{t('performance.headers.currentPrice')}</th>
+											<th className="text-right py-2">{t('performance.headers.currentValue')}</th>
+											<th className="text-right py-2">{t('performance.headers.pl')}</th>
+											<th className="text-right py-2">{t('performance.headers.plPercent')}</th>
+											<th className="text-right py-2">{t('performance.headers.change24h')}</th>
+										</tr>
+									</thead>
 											<tbody>
 												{dashboardData?.assets?.map((item: any) => (
 													<tr key={item.asset.id} className="border-b hover:bg-gray-50">
 														<td className="py-3">
 															<div className="flex items-center gap-2">
-																<Image
-																	src={getCryptoLogo(item.asset.symbol)}
+																<LazyImage
+																	src={item.logoUrl || ""}
 																	alt={item.asset.symbol}
-																	width={32}
-																	height={32}
-																	className="rounded-full"
+																	className="w-8 h-8"
+																	fallback={
+																		<div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-sm font-bold">
+																			{item.asset.symbol.slice(0, 2)}
+																		</div>
+																	}
 																/>
 																<div>
 																	<p className="font-medium">{item.asset.symbol}</p>
@@ -542,7 +560,7 @@ export default function DashboardPage() {
 															</div>
 														</td>
 														<td className="text-right py-3">
-															{formatCrypto(item.totalQuantity)}
+															{formatCrypto(item.totalQuantity, item.asset?.symbol)}
 														</td>
 														<td className="text-right py-3">
 															{maskValue(formatVnd(item.avgBuyPrice * vndRate))}
@@ -553,17 +571,20 @@ export default function DashboardPage() {
 														<td className="text-right py-3">
 															{maskValue(formatVnd(item.currentValue * vndRate))}
 														</td>
-														<td className={`text-right py-3 font-medium ${item.pnl >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-															{item.pnl >= 0 ? '+' : ''}{maskValue(formatVnd(item.pnl * vndRate))}
+														<td className={`text-right py-3 font-medium ${item.unrealizedPL >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+															{item.unrealizedPL >= 0 ? '+' : ''}{maskValue(formatVnd(item.unrealizedPL * vndRate))}
 														</td>
-														<td className={`text-right py-3 font-medium ${item.pnlPercent >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-															{!isNaN(item.pnlPercent) && isFinite(item.pnlPercent) ?
-											`${item.pnlPercent >= 0 ? '+' : ''}${formatPercent(item.pnlPercent)}` :
-											'N/A'
+														<td className={`text-right py-3 font-medium ${item.unrealizedPLPercent >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+															{!isNaN(item.unrealizedPLPercent) && isFinite(item.unrealizedPLPercent) ?
+											`${item.unrealizedPLPercent >= 0 ? '+' : ''}${formatPercent(item.unrealizedPLPercent)}` :
+											'0.00%'
 										}
 														</td>
-														<td className={`text-right py-3 ${item.priceChange24h >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-															{item.priceChange24h >= 0 ? '+' : ''}{formatPercent(item.priceChange24h)}
+														<td className={`text-right py-3 ${(item.priceChange24h || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+															{item.priceChange24h !== undefined && !isNaN(item.priceChange24h) && isFinite(item.priceChange24h) ?
+																`${item.priceChange24h >= 0 ? '+' : ''}${formatPercent(item.priceChange24h)}` :
+																'0.00%'
+															}
 														</td>
 													</tr>
 												))}
@@ -577,11 +598,11 @@ export default function DashboardPage() {
 						{/* Allocation Tab */}
 						<TabsContent value="allocation" className="space-y-4">
 							<div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-								<Card>
-									<CardHeader>
-										<CardTitle>Asset Allocation</CardTitle>
-										<CardDescription>Portfolio distribution by asset</CardDescription>
-									</CardHeader>
+						<Card>
+							<CardHeader>
+								<CardTitle>{t('allocation.assetAllocation.title')}</CardTitle>
+								<CardDescription>{t('allocation.assetAllocation.description')}</CardDescription>
+							</CardHeader>
 									<CardContent>
 										<div className="space-y-4">
 											{dashboardData?.assets?.map((asset: any) => {
@@ -607,11 +628,11 @@ export default function DashboardPage() {
 									</CardContent>
 								</Card>
 
-								<Card>
-									<CardHeader>
-										<CardTitle>Rebalancing Suggestions</CardTitle>
-										<CardDescription>Optimize your portfolio allocation</CardDescription>
-									</CardHeader>
+						<Card>
+							<CardHeader>
+								<CardTitle>{t('allocation.rebalancingSuggestions.title')}</CardTitle>
+								<CardDescription>{t('allocation.rebalancingSuggestions.description')}</CardDescription>
+							</CardHeader>
 									<CardContent>
 										<div className="space-y-3">
 											{dashboardData?.assets?.map((asset: any) => {
@@ -631,25 +652,28 @@ export default function DashboardPage() {
 														<div key={asset.asset.id} className="p-3 border rounded-lg">
 															<div className="flex items-center justify-between">
 																<div className="flex items-center gap-2">
-																	<Image
-																		src={getCryptoLogo(asset.asset.symbol)}
+																	<LazyImage
+																		src={asset.logoUrl || ""}
 																		alt={asset.asset.symbol}
-																		width={24}
-																		height={24}
-																		className="rounded-full"
+																		className="w-6 h-6"
+																		fallback={
+																			<div className="w-6 h-6 rounded-full bg-muted flex items-center justify-center text-xs font-bold">
+																				{asset.asset.symbol.slice(0, 2)}
+																			</div>
+																		}
 																	/>
 																	<span className="font-medium">{asset.asset.symbol}</span>
 																</div>
-																<Badge variant={difference > 0 ? "destructive" : "default"}>
-																	{difference > 0 ? "Overweight" : "Underweight"}
-																</Badge>
+													<Badge variant={difference > 0 ? "destructive" : "default"}>
+														{difference > 0 ? t('allocation.rebalancingSuggestions.overweight') : t('allocation.rebalancingSuggestions.underweight')}
+													</Badge>
 															</div>
-															<div className="mt-2 text-sm text-muted-foreground">
-																Current: {formatPercent(currentAllocation)} → Target: {formatPercent(targetAllocation)}
-															</div>
-															<div className="mt-1 text-sm">
-																{difference > 0 ? "Consider selling" : "Consider buying"} {formatVnd(Math.abs(difference * totalPortfolioValueUSD / 100) * vndRate)}
-															</div>
+												<div className="mt-2 text-sm text-muted-foreground">
+													{t('allocation.rebalancingSuggestions.current')}: {formatPercent(currentAllocation)} → {t('allocation.rebalancingSuggestions.target')}: {formatPercent(targetAllocation)}
+												</div>
+												<div className="mt-1 text-sm">
+													{difference > 0 ? t('allocation.rebalancingSuggestions.considerSelling') : t('allocation.rebalancingSuggestions.considerBuying')} {formatVnd(Math.abs(difference * totalPortfolioValueUSD / 100) * vndRate)}
+												</div>
 														</div>
 													);
 												}
@@ -669,7 +693,7 @@ export default function DashboardPage() {
 											}) && (
 												<div className="text-center py-8 text-muted-foreground">
 													<CheckCircle className="h-12 w-12 mx-auto mb-2 text-green-600" />
-													<p>Your portfolio is well balanced!</p>
+													<p>{t('allocation.rebalancingSuggestions.wellBalanced')}</p>
 												</div>
 											)}
 										</div>
@@ -682,21 +706,21 @@ export default function DashboardPage() {
 						<TabsContent value="transactions" className="space-y-4">
 							<Card>
 								<CardHeader>
-									<CardTitle>Transaction History</CardTitle>
-									<CardDescription>Complete history of all your trades</CardDescription>
+									<CardTitle>{t('transactionHistory.title')}</CardTitle>
+									<CardDescription>{t('transactionHistory.description')}</CardDescription>
 								</CardHeader>
 								<CardContent>
 									<div className="overflow-x-auto">
 										<table className="w-full">
 											<thead className="border-b">
 												<tr>
-													<th className="text-left py-2">Date</th>
-													<th className="text-left py-2">Type</th>
-													<th className="text-left py-2">Asset</th>
-													<th className="text-right py-2">Quantity</th>
-													<th className="text-right py-2">Price</th>
-													<th className="text-right py-2">Total</th>
-													<th className="text-right py-2">Fee</th>
+													<th className="text-left py-2">{t('transactionHistory.headers.date')}</th>
+													<th className="text-left py-2">{t('transactionHistory.headers.type')}</th>
+													<th className="text-left py-2">{t('transactionHistory.headers.asset')}</th>
+													<th className="text-right py-2">{t('transactionHistory.headers.quantity')}</th>
+													<th className="text-right py-2">{t('transactionHistory.headers.price')}</th>
+													<th className="text-right py-2">{t('transactionHistory.headers.total')}</th>
+													<th className="text-right py-2">{t('transactionHistory.headers.fee')}</th>
 												</tr>
 											</thead>
 											<tbody>
@@ -710,20 +734,23 @@ export default function DashboardPage() {
 																{tx.type}
 															</Badge>
 														</td>
-														<td className="py-3">
-															<div className="flex items-center gap-2">
-																<Image
-																	src={getCryptoLogo(tx.asset?.symbol)}
-																	alt={tx.asset?.symbol || ""}
-																	width={24}
-																	height={24}
-																	className="rounded-full"
-																/>
-																<span>{tx.asset?.symbol}</span>
-															</div>
-														</td>
+										<td className="py-3">
+											<div className="flex items-center gap-2">
+												<LazyImage
+													src={tx.asset?.logoUrl || ""}
+													alt={tx.asset?.symbol || ""}
+													className="w-6 h-6"
+													fallback={
+														<div className="w-6 h-6 rounded-full bg-muted flex items-center justify-center text-xs font-bold">
+															{tx.asset?.symbol.slice(0, 2) || "?"}
+														</div>
+													}
+												/>
+												<span>{tx.asset?.symbol}</span>
+											</div>
+										</td>
 														<td className="text-right py-3">
-															{formatCrypto(tx.quantity)}
+															{formatCrypto(tx.quantity, tx.asset?.symbol)}
 														</td>
 														<td className="text-right py-3">
 															{maskValue(formatVnd(tx.pricePerUnit * vndRate))}
@@ -739,8 +766,13 @@ export default function DashboardPage() {
 											</tbody>
 										</table>
 									</div>
-									<div className="text-center text-sm text-blue-600 hover:underline mt-4 pt-4 border-t">
-										View all transactions
+									<div className="mt-4 pt-4 border-t">
+										<Link 
+											href="/transaction"
+											className="block w-full py-2 px-4 text-center text-sm text-blue-600 hover:text-blue-700 hover:underline hover:bg-blue-50 transition-all duration-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1"
+										>
+											{t('transactionHistory.viewAllTransactions')}
+										</Link>
 									</div>
 								</CardContent>
 							</Card>
@@ -751,8 +783,8 @@ export default function DashboardPage() {
 							<div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 								<Card>
 									<CardHeader>
-										<CardTitle>Investment Insights</CardTitle>
-										<CardDescription>Key observations about your portfolio</CardDescription>
+										<CardTitle>{t('insights.investmentInsights.title')}</CardTitle>
+										<CardDescription>{t('insights.investmentInsights.description')}</CardDescription>
 									</CardHeader>
 									<CardContent className="space-y-4">
 										{/* ROI Analysis */}
@@ -813,8 +845,8 @@ export default function DashboardPage() {
 
 								<Card>
 									<CardHeader>
-										<CardTitle>Recommendations</CardTitle>
-										<CardDescription>Suggested actions to optimize your portfolio</CardDescription>
+										<CardTitle>{t('insights.recommendations.title')}</CardTitle>
+										<CardDescription>{t('insights.recommendations.description')}</CardDescription>
 									</CardHeader>
 									<CardContent className="space-y-3">
 										{/* Dynamic recommendations based on metrics */}
@@ -888,11 +920,11 @@ export default function DashboardPage() {
 							</div>
 
 							{/* Market Context */}
-							<Card>
-								<CardHeader>
-									<CardTitle>Market Context</CardTitle>
-									<CardDescription>How your portfolio compares to market conditions</CardDescription>
-								</CardHeader>
+								<Card>
+									<CardHeader>
+										<CardTitle>{t('insights.marketContext.title')}</CardTitle>
+										<CardDescription>{t('insights.marketContext.description')}</CardDescription>
+									</CardHeader>
 								<CardContent>
 									<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
 										<div className="text-center p-4 border rounded-lg">

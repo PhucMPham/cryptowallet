@@ -14,6 +14,11 @@ const nextConfig: NextConfig = {
 				hostname: 's2.coinmarketcap.com',
 				pathname: '/static/img/coins/**',
 			},
+			{
+				protocol: 'https',
+				hostname: 'ui-avatars.com',
+				pathname: '/api/**',
+			},
 		],
 	},
 };

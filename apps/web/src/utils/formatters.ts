@@ -96,11 +96,15 @@ export const formatCrypto = (amount: number, symbol?: string): string => {
     if (["BTC", "ETH"].includes(symbol.toUpperCase())) {
       decimals = 8;
     } else if (["USDT", "USDC", "DAI"].includes(symbol.toUpperCase())) {
-      decimals = 2;
+      // For stablecoins like USDT, always use exactly 2 decimals with trailing zeros
+      return new Intl.NumberFormat("vi-VN", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      }).format(amount);
     }
   }
 
-  // Use more decimals for very small amounts
+  // Use more decimals for very small amounts (but not for stablecoins)
   if (amount !== 0 && amount < 0.01) {
     decimals = Math.max(decimals, 8);
   }

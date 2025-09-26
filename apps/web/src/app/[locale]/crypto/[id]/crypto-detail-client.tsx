@@ -16,7 +16,7 @@ import {
   TableHeader, 
   TableRow 
 } from "@/components/ui/table";
-import { formatCurrency, formatVnd, formatNumber, formatPercent } from "@/utils/formatters";
+import { formatCurrency, formatVnd, formatNumber, formatPercent, formatCrypto } from "@/utils/formatters";
 import { format } from "date-fns";
 import { ArrowLeft, TrendingUp, TrendingDown, DollarSign, Activity, Calendar, Hash } from "lucide-react";
 import { LazyImage } from "@/components/lazy-image";
@@ -127,7 +127,7 @@ export default function CryptoDetailClient({ assetId }: CryptoDetailClientProps)
             <Hash className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatNumber(asset.totalQuantity)}</div>
+            <div className="text-2xl font-bold">{formatCrypto(asset.totalQuantity, asset.asset?.symbol)}</div>
             <p className="text-xs text-muted-foreground">
               {formatCurrency(asset.currentValue)}
             </p>
@@ -252,7 +252,7 @@ function TransactionsTable({
                 {t(tx.type)}
               </Badge>
             </TableCell>
-            <TableCell className="text-right">{formatNumber(tx.quantity)}</TableCell>
+            <TableCell className="text-right">{formatCrypto(tx.quantity, tx.asset?.symbol)}</TableCell>
             <TableCell className="text-right">{formatCurrency(tx.pricePerUnit)}</TableCell>
             <TableCell className="text-right">
               {formatCurrency(tx.quantity * tx.pricePerUnit)}

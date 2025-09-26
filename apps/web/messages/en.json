@@ -174,6 +174,252 @@
       "updateError": "Failed to update transaction"
     }
   },
+  "home": {
+    "title": "Better Stack",
+    "apiStatus": {
+      "title": "API Status",
+      "checking": "Checking...",
+      "connected": "Connected",
+      "disconnected": "Disconnected"
+    },
+    "applications": {
+      "title": "Applications",
+      "cryptoPortfolioTracker": "Crypto Portfolio Tracker"
+    }
+  },
+  "dashboard": {
+    "title": "Portfolio Dashboard",
+    "description": "Comprehensive analysis and reporting of your investments",
+    "buttons": {
+      "refresh": "Refresh",
+      "exportReport": "Export Report"
+    },
+    "metrics": {
+      "totalPortfolioValue": "Total Portfolio Value",
+      "totalPL": "Total P&L",
+      "diversificationScore": "Diversification Score",
+      "riskLevel": "Risk Level",
+      "wellDiversified": "Well Diversified",
+      "moderate": "Moderate",
+      "concentrated": "Concentrated",
+      "conservative": "Conservative",
+      "balanced": "Balanced",
+      "aggressive": "Aggressive",
+      "basedOn24h": "Based on 24h price changes"
+    },
+    "tabs": {
+      "overview": "Overview",
+      "performance": "Performance",
+      "allocation": "Allocation",
+      "transactions": "Transactions",
+      "insights": "Insights"
+    },
+    "overview": {
+      "portfolioComposition": {
+        "title": "Portfolio Composition",
+        "description": "Asset allocation by value"
+      },
+      "performanceHighlights": {
+        "title": "Performance Highlights",
+        "description": "Best and worst performing assets",
+        "bestPerformer": "Best Performer",
+        "worstPerformer": "Worst Performer"
+      },
+      "recentActivity": {
+        "title": "Recent Activity",
+        "description": "Latest transactions across all assets",
+        "bought": "Bought",
+        "sold": "Sold",
+        "viewAllTransactions": "View all transactions"
+      },
+      "investmentSummary": {
+        "totalInvested": "Total Invested",
+        "currentValue": "Current Value",
+        "totalReturn": "Total Return"
+      }
+    },
+    "performance": {
+      "title": "Performance Analysis",
+      "description": "Detailed performance metrics for each asset",
+      "headers": {
+        "asset": "Asset",
+        "holdings": "Holdings",
+        "avgBuyPrice": "Avg Buy Price",
+        "currentPrice": "Current Price",
+        "currentValue": "Current Value",
+        "pl": "P&L",
+        "plPercent": "P&L %",
+        "change24h": "24h Change"
+      }
+    },
+    "allocation": {
+      "assetAllocation": {
+        "title": "Asset Allocation",
+        "description": "Portfolio distribution by asset"
+      },
+      "rebalancingSuggestions": {
+        "title": "Rebalancing Suggestions",
+        "description": "Optimize your portfolio allocation",
+        "overweight": "Overweight",
+        "underweight": "Underweight",
+        "current": "Current",
+        "target": "Target",
+        "considerSelling": "Consider selling",
+        "considerBuying": "Consider buying",
+        "wellBalanced": "Your portfolio is well balanced!"
+      }
+    },
+    "transactionHistory": {
+      "title": "Transaction History",
+      "description": "Complete history of all your trades",
+      "headers": {
+        "date": "Date",
+        "type": "Type",
+        "asset": "Asset",
+        "quantity": "Quantity",
+        "price": "Price",
+        "total": "Total",
+        "fee": "Fee"
+      },
+      "viewAllTransactions": "View all transactions"
+    },
+    "insights": {
+      "investmentInsights": {
+        "title": "Investment Insights",
+        "description": "Key observations about your portfolio"
+      },
+      "recommendations": {
+        "title": "Recommendations",
+        "description": "Suggested actions to optimize your portfolio"
+      },
+      "marketContext": {
+        "title": "Market Context",
+        "description": "How your portfolio compares to market conditions",
+        "assetsHeld": "Assets Held",
+        "totalROI": "Total ROI",
+        "totalTrades": "Total Trades"
+      },
+      "analysis": {
+        "roi": {
+          "title": "Return on Investment",
+          "profit": "Your portfolio has generated a profit of",
+          "loss": "Your portfolio has generated a loss of",
+          "sinceInception": "since inception",
+          "outperforming": "Outperforming expectations"
+        },
+        "diversification": {
+          "title": "Diversification Analysis",
+          "wellDiversified": "Your portfolio is well-diversified, reducing risk exposure",
+          "considerAdding": "Consider adding more assets to improve diversification",
+          "concentrated": "Your portfolio is concentrated. Consider diversifying to reduce risk"
+        },
+        "volatility": {
+          "title": "Volatility Assessment",
+          "low": "Your portfolio shows low volatility, suitable for conservative investors",
+          "medium": "Moderate volatility detected, balanced risk-reward profile",
+          "high": "High volatility detected. Expect larger price swings"
+        }
+      },
+      "recommendationActions": {
+        "improveDiversification": {
+          "title": "Improve Diversification",
+          "description": "Consider adding 2-3 more assets to reduce concentration risk"
+        },
+        "reviewLosses": {
+          "title": "Review Loss-Making Positions",
+          "description": "Consider tax-loss harvesting or averaging down on fundamentally strong assets"
+        },
+        "takeProfits": {
+          "title": "Consider Taking Profits",
+          "description": "Your portfolio is up significantly. Consider rebalancing or taking some profits"
+        },
+        "setGoals": {
+          "title": "Set Investment Goals",
+          "description": "Define clear targets for each position to make informed decisions"
+        },
+        "regularReview": {
+          "title": "Regular Review",
+          "description": "Schedule monthly portfolio reviews to stay on track with your goals"
+        }
+      }
+    },
+    "riskLevels": {
+      "low": "Low",
+      "medium": "Medium",
+      "high": "High",
+      "veryHigh": "Very High"
+    }
+  },
+  "transaction": {
+    "title": "Transaction History",
+    "description": "Complete history of all your crypto and P2P transactions",
+    "export": "Export",
+    "stats": {
+      "total": "Total Transactions",
+      "buys": "Buy Orders",
+      "sells": "Sell Orders",
+      "volume": "Total Investment",
+      "fees": "Total Fees"
+    },
+    "filters": {
+      "title": "Filters",
+      "search": "Search",
+      "searchPlaceholder": "Search by coin, exchange, notes...",
+      "asset": "Asset",
+      "allAssets": "All Assets",
+      "type": "Transaction Type",
+      "allTypes": "All Types",
+      "buy": "Buy",
+      "sell": "Sell",
+      "sortBy": "Sort By",
+      "sortDate": "Date",
+      "sortAsset": "Asset",
+      "sortAmount": "Amount",
+      "sortQuantity": "Quantity"
+    },
+    "table": {
+      "title": "Transaction List",
+      "showing": "Showing {start}-{end} of {total} transactions",
+      "date": "Date",
+      "type": "Type",
+      "asset": "Asset",
+      "quantity": "Quantity",
+      "price": "Price",
+      "total": "Total",
+      "fee": "Fee",
+      "exchange": "Exchange",
+      "actions": "Actions",
+      "buy": "BUY",
+      "sell": "SELL"
+    },
+    "pagination": {
+      "page": "Page",
+      "of": "of",
+      "previous": "Previous",
+      "next": "Next"
+    },
+    "detail": {
+      "title": "Transaction Details",
+      "id": "Transaction ID",
+      "date": "Date & Time",
+      "asset": "Asset",
+      "type": "Type",
+      "buy": "BUY",
+      "sell": "SELL",
+      "quantity": "Quantity",
+      "pricePerUnit": "Price Per Unit",
+      "totalAmount": "Total Amount",
+      "fee": "Transaction Fee",
+      "exchange": "Exchange",
+      "platform": "P2P Platform",
+      "paymentSource": "Payment Source",
+      "notes": "Notes",
+      "counterparty": "Counterparty",
+      "bankName": "Bank",
+      "transactionId": "P2P Transaction ID",
+      "marketInfo": "Market Information"
+    }
+  },
   "navigation": {
     "home": "Home",
     "dashboard": "Dashboard",

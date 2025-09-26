@@ -854,7 +854,8 @@ export const cryptoRouter = router({
 		.query(async ({ input }) => {
 			const limit = input?.limit || 10;
 
-			return await db
+			// Get transactions with assets
+			const transactions = await db
 				.select({
 					id: cryptoTransaction.id,
 					type: cryptoTransaction.type,
@@ -869,6 +870,147 @@ export const cryptoRouter = router({
 				.leftJoin(cryptoAsset, eq(cryptoTransaction.assetId, cryptoAsset.id))
 				.orderBy(desc(cryptoTransaction.transactionDate))
 				.limit(limit);
+
+			// Get unique symbols for logo fetching
+			const uniqueSymbols = [...new Set(transactions.map(tx => tx.asset?.symbol).filter(Boolean))] as string[];
+			
+			// Fetch logos for all symbols
+			const symbolLogos = uniqueSymbols.length > 0 
+				? await coinMarketCapService.getBatchMetadata(uniqueSymbols)
+				: new Map();
+
+			// Add logo URLs to transactions
+			const transactionsWithLogos = transactions.map(tx => {
+				if (!tx.asset) return tx;
+				
+				const metadata = symbolLogos.get(tx.asset.symbol.toUpperCase());
+				const logoUrl = metadata?.logoUrl || null;
+				
+				return {
+					...tx,
+					asset: {
+						...tx.asset,
+						logoUrl
+					}
+				};
+			});
+
+		return transactionsWithLogos;
+	}),
+
+	// Get all transactions including P2P and crypto transactions
+	getAllTransactions: publicProcedure
+		.input(z.object({
+			limit: z.number().optional().default(100),
+		}).optional())
+		.query(async ({ input }) => {
+			const limit = input?.limit || 100;
+
+			// Get crypto transactions
+			const cryptoTransactions = await db
+				.select({
+					id: cryptoTransaction.id,
+					type: cryptoTransaction.type,
+					quantity: cryptoTransaction.quantity,
+					pricePerUnit: cryptoTransaction.pricePerUnit,
+					totalAmount: cryptoTransaction.totalAmount,
+					fee: cryptoTransaction.fee,
+					transactionDate: cryptoTransaction.transactionDate,
+					exchange: cryptoTransaction.exchange,
+					notes: cryptoTransaction.notes,
+					asset: cryptoAsset,
+				})
+				.from(cryptoTransaction)
+				.leftJoin(cryptoAsset, eq(cryptoTransaction.assetId, cryptoAsset.id))
+				.orderBy(desc(cryptoTransaction.transactionDate));
+
+			// Get P2P transactions
+			const p2pTransactions = await db
+				.select()
+				.from(p2pTransaction)
+				.orderBy(desc(p2pTransaction.transactionDate));
+
+			// Get unique symbols for logo fetching
+			const cryptoSymbols = [...new Set(cryptoTransactions.map(tx => tx.asset?.symbol).filter(Boolean))] as string[];
+			const allSymbols = [...cryptoSymbols, 'USDT']; // Include USDT for P2P transactions
+			
+			// Fetch logos for all symbols
+			const symbolLogos = allSymbols.length > 0 
+				? await coinMarketCapService.getBatchMetadata(allSymbols)
+				: new Map();
+
+			// Transform crypto transactions
+			const transformedCryptoTxs = cryptoTransactions.map(tx => {
+				if (!tx.asset) return null;
+				
+				const metadata = symbolLogos.get(tx.asset.symbol.toUpperCase());
+				const logoUrl = metadata?.logoUrl || null;
+				
+				return {
+					id: `crypto_${tx.id}`,
+					originalId: tx.id,
+					source: 'crypto' as const,
+					type: tx.type,
+					quantity: tx.quantity,
+					pricePerUnit: tx.pricePerUnit,
+					totalAmount: tx.totalAmount,
+					fee: tx.fee || 0,
+					transactionDate: tx.transactionDate,
+					exchange: tx.exchange,
+					notes: tx.notes,
+					asset: {
+						id: tx.asset.id,
+						symbol: tx.asset.symbol,
+						name: tx.asset.name,
+						logoUrl
+					}
+				};
+			}).filter(Boolean);
+
+			// Transform P2P transactions
+			const usdtMetadata = symbolLogos.get('USDT');
+			const usdtLogoUrl = usdtMetadata?.logoUrl || null;
+
+			const transformedP2PTxs = p2pTransactions.map(tx => ({
+				id: `p2p_${tx.id}`,
+				originalId: tx.id,
+				source: 'p2p' as const,
+				type: tx.type,
+				quantity: tx.cryptoAmount,
+				pricePerUnit: tx.exchangeRate, // VND per USDT
+				totalAmount: tx.fiatAmount, // VND amount
+				fee: tx.feeAmount || 0,
+				transactionDate: tx.transactionDate,
+				exchange: tx.platform, // This is the key - use platform as exchange
+				notes: tx.notes,
+				asset: {
+					id: 0, // P2P transactions don't have asset IDs
+					symbol: tx.crypto,
+					name: tx.crypto === 'USDT' ? 'Tether' : tx.crypto,
+					logoUrl: usdtLogoUrl
+				},
+				// P2P specific fields
+				p2pData: {
+					platform: tx.platform,
+					counterparty: tx.counterparty,
+					bankName: tx.bankName,
+					transactionId: tx.transactionId,
+					exchangeRate: tx.exchangeRate,
+					marketRate: tx.marketRate,
+					spreadPercent: tx.spreadPercent
+				}
+			}));
+
+			// Combine and sort all transactions by date
+			const allTransactions = [...transformedCryptoTxs, ...transformedP2PTxs]
+				.filter(Boolean) // Remove any null values
+				.sort((a, b) => {
+					if (!a || !b) return 0;
+					return new Date(b.transactionDate).getTime() - new Date(a.transactionDate).getTime();
+				})
+				.slice(0, limit);
+
+			return allTransactions;
 		}),
 
 	// Optimized endpoint for dashboard - fetches portfolio and assets in parallel
@@ -983,8 +1125,24 @@ export const cryptoRouter = router({
 			}
 		}
 
-		// Fetch logos for all symbols
-		const symbolLogos = await coinMarketCapService.getBatchMetadata(symbols);
+		// Fetch logos for all symbols and 24h price changes
+		const [symbolLogos, cryptoData] = await Promise.all([
+			coinMarketCapService.getBatchMetadata(symbols),
+			// Get 24h price change data if CoinMarketCap is configured
+			coinMarketCapService.isConfigured() && symbols.length > 0 
+				? coinMarketCapService.getCryptocurrencyData(symbols)
+				: Promise.resolve([])
+		]);
+
+		// Create a map for 24h price changes
+		const priceChanges = new Map<string, number>();
+		if (cryptoData && cryptoData.length > 0) {
+			cryptoData.forEach(crypto => {
+				if (crypto.quote?.USD?.percent_change_24h !== undefined) {
+					priceChanges.set(crypto.symbol.toUpperCase(), crypto.quote.USD.percent_change_24h);
+				}
+			});
+		}
 
 		// Process assets with prices and VND values
 		const assetsWithPrices = assetsData.map(item => {
@@ -1001,6 +1159,9 @@ export const cryptoRouter = router({
 			// Get logo URL from metadata service
 			const metadata = symbolLogos.get(item.asset.symbol.toUpperCase());
 			const logoUrl = metadata?.logoUrl || null;
+			
+			// Get 24h price change
+			const priceChange24h = priceChanges.get(item.asset.symbol.toUpperCase()) || 0;
 			
 			// Use P2P average price for USDT, otherwise use crypto transaction average
 			const finalAvgBuyPrice = item.asset.symbol === 'USDT' ? usdtP2PAvgPrice : item.avgBuyPrice;
@@ -1019,6 +1180,7 @@ export const cryptoRouter = router({
 				currentValue,
 				unrealizedPL: finalUnrealizedPL, // Override P&L for USDT
 				unrealizedPLPercent: finalUnrealizedPLPercent, // Override P&L % for USDT
+				priceChange24h, // Add 24h price change
 				logoUrl,
 				vnd: {
 					currentPrice: currentPrice ? currentPrice * vndConversion.usdToVnd : null,

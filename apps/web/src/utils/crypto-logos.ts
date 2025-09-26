@@ -159,7 +159,6 @@ const CMC_IDS: Record<string, number> = {
   RPL: 2943,
   SCRT: 5604,
   SLP: 5824,
-  SOL: 5426,
   SRM: 6187,
   SSV: 12999,
   STMX: 2297,

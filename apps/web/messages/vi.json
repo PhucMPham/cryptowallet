@@ -174,9 +174,255 @@
       "updateError": "Không thể cập nhật giao dịch"
     }
   },
+  "home": {
+    "title": "Better Stack",
+    "apiStatus": {
+      "title": "Trạng Thái API",
+      "checking": "Đang kiểm tra...",
+      "connected": "Đã kết nối",
+      "disconnected": "Mất kết nối"
+    },
+    "applications": {
+      "title": "Ứng Dụng",
+      "cryptoPortfolioTracker": "Quản Lý Danh Mục Crypto"
+    }
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "description": "Phân tích và báo cáo toàn diện về các khoản đầu tư của bạn",
+    "buttons": {
+      "refresh": "Làm Mới",
+      "exportReport": "Xuất Báo Cáo"
+    },
+    "metrics": {
+      "totalPortfolioValue": "Tổng Giá Trị Danh Mục",
+      "totalPL": "Tổng Lãi/Lỗ",
+      "diversificationScore": "Điểm Đa Dạng Hóa",
+      "riskLevel": "Mức Độ Rủi Ro",
+      "wellDiversified": "Đa Dạng Hóa Tốt",
+      "moderate": "Vừa Phải",
+      "concentrated": "Tập Trung",
+      "conservative": "Bảo Thủ",
+      "balanced": "Cân Bằng",
+      "aggressive": "Tích Cực",
+      "basedOn24h": "Dựa trên thay đổi giá 24h"
+    },
+    "tabs": {
+      "overview": "Tổng Quan",
+      "performance": "Hiệu Suất",
+      "allocation": "Phân Bổ",
+      "transactions": "Giao Dịch",
+      "insights": "Phân Tích"
+    },
+    "overview": {
+      "portfolioComposition": {
+        "title": "Thành Phần Danh Mục",
+        "description": "Phân bổ tài sản theo giá trị"
+      },
+      "performanceHighlights": {
+        "title": "Điểm Nổi Bật Hiệu Suất",
+        "description": "Tài sản có hiệu suất tốt nhất và kém nhất",
+        "bestPerformer": "Hiệu Suất Tốt Nhất",
+        "worstPerformer": "Hiệu Suất Kém Nhất"
+      },
+      "recentActivity": {
+        "title": "Hoạt Động Gần Đây",
+        "description": "Giao dịch mới nhất trên tất cả tài sản",
+        "bought": "Đã mua",
+        "sold": "Đã bán",
+        "viewAllTransactions": "Xem tất cả giao dịch"
+      },
+      "investmentSummary": {
+        "totalInvested": "Tổng Đã Đầu Tư",
+        "currentValue": "Giá Trị Hiện Tại",
+        "totalReturn": "Tổng Lợi Nhuận"
+      }
+    },
+    "performance": {
+      "title": "Phân Tích Hiệu Suất",
+      "description": "Chỉ số hiệu suất chi tiết cho từng tài sản",
+      "headers": {
+        "asset": "Tài Sản",
+        "holdings": "Số Lượng Nắm Giữ",
+        "avgBuyPrice": "Giá Mua TB",
+        "currentPrice": "Giá Hiện Tại",
+        "currentValue": "Giá Trị Hiện Tại",
+        "pl": "L/L",
+        "plPercent": "% L/L",
+        "change24h": "Thay Đổi 24h"
+      }
+    },
+    "allocation": {
+      "assetAllocation": {
+        "title": "Phân Bổ Tài Sản",
+        "description": "Phân phối danh mục theo tài sản"
+      },
+      "rebalancingSuggestions": {
+        "title": "Đề Xuất Tái Cân Bằng",
+        "description": "Tối ưu hóa phân bổ danh mục của bạn",
+        "overweight": "Quá Trọng",
+        "underweight": "Thiếu Trọng",
+        "current": "Hiện Tại",
+        "target": "Mục Tiêu",
+        "considerSelling": "Nên bán",
+        "considerBuying": "Nên mua",
+        "wellBalanced": "Danh mục của bạn đã cân bằng tốt!"
+      }
+    },
+    "transactionHistory": {
+      "title": "Lịch Sử Giao Dịch",
+      "description": "Lịch sử đầy đủ của tất cả giao dịch",
+      "headers": {
+        "date": "Ngày",
+        "type": "Loại",
+        "asset": "Tài Sản",
+        "quantity": "Số Lượng",
+        "price": "Giá",
+        "total": "Tổng",
+        "fee": "Phí"
+      },
+      "viewAllTransactions": "Xem tất cả giao dịch"
+    },
+    "insights": {
+      "investmentInsights": {
+        "title": "Phân Tích Đầu Tư",
+        "description": "Những quan sát chính về danh mục của bạn"
+      },
+      "recommendations": {
+        "title": "Khuyến Nghị",
+        "description": "Các hành động được đề xuất để tối ưu hóa danh mục"
+      },
+      "marketContext": {
+        "title": "Bối Cảnh Thị Trường",
+        "description": "So sánh danh mục với điều kiện thị trường",
+        "assetsHeld": "Tài Sản Nắm Giữ",
+        "totalROI": "Tổng ROI",
+        "totalTrades": "Tổng Giao Dịch"
+      },
+      "analysis": {
+        "roi": {
+          "title": "Lợi Nhuận Đầu Tư",
+          "profit": "Danh mục của bạn đã tạo ra lợi nhuận",
+          "loss": "Danh mục của bạn đã có khoản lỗ",
+          "sinceInception": "kể từ khi bắt đầu",
+          "outperforming": "Hiệu suất vượt kỳ vọng"
+        },
+        "diversification": {
+          "title": "Phân Tích Đa Dạng Hóa",
+          "wellDiversified": "Danh mục đã đa dạng hóa tốt, giảm thiểu rủi ro",
+          "considerAdding": "Nên thêm tài sản để cải thiện đa dạng hóa",
+          "concentrated": "Danh mục tập trung. Nên đa dạng hóa để giảm rủi ro"
+        },
+        "volatility": {
+          "title": "Đánh Giá Biến Động",
+          "low": "Danh mục có biến động thấp, phù hợp nhà đầu tư bảo thủ",
+          "medium": "Phát hiện biến động vừa phải, cân bằng rủi ro-lợi nhuận",
+          "high": "Phát hiện biến động cao. Dự kiến dao động giá lớn"
+        }
+      },
+      "recommendationActions": {
+        "improveDiversification": {
+          "title": "Cải Thiện Đa Dạng Hóa",
+          "description": "Nên thêm 2-3 tài sản để giảm rủi ro tập trung"
+        },
+        "reviewLosses": {
+          "title": "Xem Xét Vị Thế Lỗ",
+          "description": "Cân nhắc thu hoạch lỗ thuế hoặc DCA cho tài sản cơ bản tốt"
+        },
+        "takeProfits": {
+          "title": "Cân Nhắc Chốt Lãi",
+          "description": "Danh mục đã tăng đáng kể. Cân nhắc tái cân bằng hoặc chốt lãi"
+        },
+        "setGoals": {
+          "title": "Đặt Mục Tiêu Đầu Tư",
+          "description": "Xác định mục tiêu rõ ràng cho từng vị thế để quyết định sáng suốt"
+        },
+        "regularReview": {
+          "title": "Đánh Giá Định Kỳ",
+          "description": "Lên lịch đánh giá danh mục hàng tháng để theo dõi mục tiêu"
+        }
+      }
+    },
+    "riskLevels": {
+      "low": "Thấp",
+      "medium": "Vừa",
+      "high": "Cao",
+      "veryHigh": "Rất Cao"
+    }
+  },
+  "transaction": {
+    "title": "Lịch Sử Giao Dịch",
+    "description": "Xem và quản lý tất cả giao dịch crypto của bạn",
+    "export": "Xuất Dữ Liệu",
+    "stats": {
+      "total": "Tổng Giao Dịch",
+      "buys": "Giao Dịch Mua",
+      "sells": "Giao Dịch Bán",
+      "volume": "Tổng Đầu Tư",
+      "fees": "Tổng Phí"
+    },
+    "filters": {
+      "title": "Bộ Lọc",
+      "search": "Tìm Kiếm",
+      "searchPlaceholder": "Tìm theo tên coin, sàn, ghi chú...",
+      "asset": "Tài Sản",
+      "allAssets": "Tất Cả Tài Sản",
+      "type": "Loại Giao Dịch",
+      "allTypes": "Tất Cả Loại",
+      "buy": "Mua",
+      "sell": "Bán",
+      "sortBy": "Sắp Xếp Theo",
+      "sortDate": "Ngày",
+      "sortAsset": "Tài Sản",
+      "sortAmount": "Số Tiền",
+      "sortQuantity": "Số Lượng"
+    },
+    "table": {
+      "title": "Danh Sách Giao Dịch",
+      "showing": "Hiển thị {start}-{end} của {total} giao dịch",
+      "date": "Ngày",
+      "type": "Loại",
+      "asset": "Tài Sản",
+      "quantity": "Số Lượng",
+      "price": "Giá",
+      "total": "Tổng Tiền",
+      "fee": "Phí",
+      "exchange": "Sàn",
+      "actions": "Thao Tác",
+      "buy": "MUA",
+      "sell": "BÁN"
+    },
+    "pagination": {
+      "page": "Trang",
+      "of": "của",
+      "previous": "Trước",
+      "next": "Sau"
+    },
+    "detail": {
+      "title": "Chi Tiết Giao Dịch",
+      "id": "Mã Giao Dịch",
+      "date": "Ngày Giờ",
+      "asset": "Tài Sản",
+      "type": "Loại",
+      "buy": "MUA",
+      "sell": "BÁN",
+      "quantity": "Số Lượng",
+      "pricePerUnit": "Giá Mỗi Đơn Vị",
+      "totalAmount": "Tổng Tiền",
+      "fee": "Phí Giao Dịch",
+      "exchange": "Sàn Giao Dịch",
+      "platform": "Sàn P2P",
+      "paymentSource": "Nguồn Thanh Toán",
+      "notes": "Ghi Chú",
+      "counterparty": "Đối Tác",
+      "bankName": "Ngân Hàng",
+      "transactionId": "Mã Giao Dịch P2P",
+      "marketInfo": "Thông Tin Thị Trường"
+    }
+  },
   "navigation": {
     "home": "Trang Chủ",
-    "dashboard": "Bảng Điều Khiển",
+    "dashboard": "Dashboard",
     "crypto": "Crypto",
     "p2p": "P2P",
     "signIn": "Đăng Nhập",

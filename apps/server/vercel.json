@@ -1,37 +1,17 @@
 {
-  "buildCommand": "bun run build",
+  "version": 2,
+  "buildCommand": "bun install && bun run build",
   "outputDirectory": ".",
-  "installCommand": "bun install",
-  "framework": null,
-  "functions": {
-    "api/index.js": {
-      "runtime": "@vercel/node@3.2.22",
-      "includeFiles": "dist/**"
-    }
-  },
-  "rewrites": [
+  "builds": [
     {
-      "source": "/(.*)",
-      "destination": "/api"
+      "src": "dist/index.js",
+      "use": "@vercel/node"
     }
   ],
-  "headers": [
+  "routes": [
     {
-      "source": "/(.*)",
-      "headers": [
-        {
-          "key": "Access-Control-Allow-Credentials",
-          "value": "true"
-        },
-        {
-          "key": "Access-Control-Allow-Methods",
-          "value": "GET,OPTIONS,PATCH,DELETE,POST,PUT"
-        },
-        {
-          "key": "Access-Control-Allow-Headers",
-          "value": "X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization"
-        }
-      ]
+      "src": "/(.*)",
+      "dest": "/dist/index.js"
     }
   ]
 }

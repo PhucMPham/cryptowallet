@@ -61,7 +61,7 @@ app.use(
 );
 
 app.get("/", (c) => {
-	return c.text("OK");
+	return c.text("OK - CORS Fixed");
 });
 
 const port = process.env.PORT || 3003;

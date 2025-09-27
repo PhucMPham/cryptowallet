@@ -1,6 +1,7 @@
 {
-  "buildCommand": "bun run build",
+  "buildCommand": "cd apps/web && bun run build",
   "installCommand": "bun install",
+  "outputDirectory": "apps/web/.next",
   "framework": null,
   "ignoreCommand": "git diff HEAD^ HEAD --quiet ."
 }

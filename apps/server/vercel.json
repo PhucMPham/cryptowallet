@@ -1,8 +1,20 @@
 {
   "buildCommand": "bun run build",
-  "outputDirectory": "dist",
+  "outputDirectory": ".",
   "installCommand": "bun install",
   "framework": null,
+  "functions": {
+    "api/index.js": {
+      "runtime": "@vercel/node@3.2.22",
+      "includeFiles": "dist/**"
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/api"
+    }
+  ],
   "headers": [
     {
       "source": "/(.*)",

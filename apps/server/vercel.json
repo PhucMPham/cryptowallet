@@ -1,6 +1,7 @@
 {
   "version": 2,
-  "buildCommand": "bun install && bun run build",
+  "installCommand": "npm install",
+  "buildCommand": "npm run build",
   "outputDirectory": ".",
   "builds": [
     {

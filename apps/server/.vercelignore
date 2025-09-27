@@ -1,0 +1,7 @@
+bun.lockb
+.env
+.env.local
+node_modules
+.turbo
+*.db
+local.db

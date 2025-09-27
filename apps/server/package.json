@@ -1,7 +1,18 @@
 {
   "name": "server",
   "main": "src/index.ts",
+  "types": "src/index.ts",
   "type": "module",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./routers": {
+      "types": "./src/routers/index.ts",
+      "default": "./src/routers/index.ts"
+    }
+  },
   "scripts": {
     "build": "tsdown",
     "check-types": "tsc -b",

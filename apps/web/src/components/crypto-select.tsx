@@ -41,11 +41,9 @@ export function CryptoSelect({
 		},
 		{
 			enabled: open, // Only fetch when dropdown is open
-			keepPreviousData: true,
 			staleTime: 5 * 60 * 1000, // Cache for 5 minutes
 			refetchOnWindowFocus: false, // Don't refetch on window focus
 			refetchOnMount: false, // Don't refetch on component mount if data exists
-			refetchInterval: false, // Disable auto-refresh
 		}
 	);
 

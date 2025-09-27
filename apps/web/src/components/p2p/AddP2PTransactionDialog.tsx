@@ -47,9 +47,9 @@ import { toast } from "@/hooks/use-toast";
 
 const formSchema = z.object({
   type: z.enum(["buy", "sell"]),
-  crypto: z.string().default("USDT"),
+  crypto: z.string().min(1),
   cryptoAmount: z.string().min(1, "Amount is required"),
-  fiatCurrency: z.string().default("VND"),
+  fiatCurrency: z.string().min(1),
   fiatAmount: z.string().min(1, "Total amount is required"),
   exchangeRate: z.string().min(1, "Exchange rate is required"),
   platform: z.string().optional(),
@@ -142,6 +142,7 @@ export function AddP2PTransactionDialog({
       cryptoAmount: parseFormattedNumber(values.cryptoAmount),
       fiatAmount: parseFormattedNumber(values.fiatAmount),
       exchangeRate: parseFormattedNumber(values.exchangeRate),
+      transactionDate: values.transactionDate.toISOString(),
     };
 
     if (editTransaction) {

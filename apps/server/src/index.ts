@@ -42,3 +42,5 @@ export default {
 	port,
 	fetch: app.fetch,
 };
+
+export type { AppRouter } from "./routers/index";

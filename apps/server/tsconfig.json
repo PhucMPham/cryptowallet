@@ -10,10 +10,15 @@
 		"paths": {
 			"@/*": ["./src/*"]
 		},
+		"rootDir": "./src",
 		"outDir": "./dist",
+		"declaration": true,
+		"declarationMap": true,
 		"types": ["bun"],
 		"composite": true,
 		"jsx": "react-jsx",
 		"jsxImportSource": "hono/jsx"
-	}
+	},
+	"include": ["src/**/*"],
+	"exclude": ["node_modules", "dist"]
 }

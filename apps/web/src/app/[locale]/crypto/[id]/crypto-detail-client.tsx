@@ -190,7 +190,7 @@ export default function CryptoDetailClient({ assetId }: CryptoDetailClientProps)
             
             <TabsContent value="buy">
               <TransactionsTable 
-                transactions={transactions?.filter(t => t.type === 'buy') || []} 
+                transactions={transactions?.filter((tx: any) => tx.type === 'buy') || []} 
                 filter="buy"
                 t={t}
               />
@@ -198,7 +198,7 @@ export default function CryptoDetailClient({ assetId }: CryptoDetailClientProps)
             
             <TabsContent value="sell">
               <TransactionsTable 
-                transactions={transactions?.filter(t => t.type === 'sell') || []} 
+                transactions={transactions?.filter((tx: any) => tx.type === 'sell') || []}
                 filter="sell"
                 t={t}
               />

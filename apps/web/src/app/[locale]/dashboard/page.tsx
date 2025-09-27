@@ -160,7 +160,7 @@ export default function DashboardPage() {
 
 	// Calculate metrics
 	const vndRate = dashboardData?.vndRate?.usdToVnd || 25000;
-	const metrics = calculateMetrics(dashboardData?.portfolio, dashboardData?.assets, vndRate);
+	const metrics = calculateMetrics(dashboardData?.portfolio, dashboardData?.assets || [], vndRate);
 
 	// All values are now in the crypto portfolio (including P2P USDT)
 	const totalPortfolioValueUSD = dashboardData?.portfolio?.totalValue || 0;
@@ -597,7 +597,6 @@ export default function DashboardPage() {
 
 						{/* Allocation Tab */}
 						<TabsContent value="allocation" className="space-y-4">
-							<div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 						<Card>
 							<CardHeader>
 								<CardTitle>{t('allocation.assetAllocation.title')}</CardTitle>
@@ -627,79 +626,6 @@ export default function DashboardPage() {
 										</div>
 									</CardContent>
 								</Card>
-
-						<Card>
-							<CardHeader>
-								<CardTitle>{t('allocation.rebalancingSuggestions.title')}</CardTitle>
-								<CardDescription>{t('allocation.rebalancingSuggestions.description')}</CardDescription>
-							</CardHeader>
-									<CardContent>
-										<div className="space-y-3">
-											{dashboardData?.assets?.map((asset: any) => {
-												// Calculate allocations safely
-												let currentAllocation = 0;
-												if (totalPortfolioValueUSD > 0) {
-													currentAllocation = (asset.currentValue / totalPortfolioValueUSD) * 100;
-												} else if (dashboardData?.assets?.length > 0) {
-													currentAllocation = 100 / dashboardData.assets.length;
-												}
-												currentAllocation = !isNaN(currentAllocation) && isFinite(currentAllocation) ? currentAllocation : 0;
-												const targetAllocation = dashboardData?.assets?.length > 0 ? 100 / dashboardData.assets.length : 0;
-												const difference = currentAllocation - targetAllocation;
-
-												if (Math.abs(difference) > 5) {
-													return (
-														<div key={asset.asset.id} className="p-3 border rounded-lg">
-															<div className="flex items-center justify-between">
-																<div className="flex items-center gap-2">
-																	<LazyImage
-																		src={asset.logoUrl || ""}
-																		alt={asset.asset.symbol}
-																		className="w-6 h-6"
-																		fallback={
-																			<div className="w-6 h-6 rounded-full bg-muted flex items-center justify-center text-xs font-bold">
-																				{asset.asset.symbol.slice(0, 2)}
-																			</div>
-																		}
-																	/>
-																	<span className="font-medium">{asset.asset.symbol}</span>
-																</div>
-													<Badge variant={difference > 0 ? "destructive" : "default"}>
-														{difference > 0 ? t('allocation.rebalancingSuggestions.overweight') : t('allocation.rebalancingSuggestions.underweight')}
-													</Badge>
-															</div>
-												<div className="mt-2 text-sm text-muted-foreground">
-													{t('allocation.rebalancingSuggestions.current')}: {formatPercent(currentAllocation)} → {t('allocation.rebalancingSuggestions.target')}: {formatPercent(targetAllocation)}
-												</div>
-												<div className="mt-1 text-sm">
-													{difference > 0 ? t('allocation.rebalancingSuggestions.considerSelling') : t('allocation.rebalancingSuggestions.considerBuying')} {formatVnd(Math.abs(difference * totalPortfolioValueUSD / 100) * vndRate)}
-												</div>
-														</div>
-													);
-												}
-												return null;
-											})}
-											{dashboardData?.assets?.every((asset: any) => {
-												// Calculate allocations safely
-												let currentAllocation = 0;
-												if (totalPortfolioValueUSD > 0) {
-													currentAllocation = (asset.currentValue / totalPortfolioValueUSD) * 100;
-												} else if (dashboardData?.assets?.length > 0) {
-													currentAllocation = 100 / dashboardData.assets.length;
-												}
-												currentAllocation = !isNaN(currentAllocation) && isFinite(currentAllocation) ? currentAllocation : 0;
-												const targetAllocation = dashboardData?.assets?.length > 0 ? 100 / dashboardData.assets.length : 0;
-												return Math.abs(currentAllocation - targetAllocation) <= 5;
-											}) && (
-												<div className="text-center py-8 text-muted-foreground">
-													<CheckCircle className="h-12 w-12 mx-auto mb-2 text-green-600" />
-													<p>{t('allocation.rebalancingSuggestions.wellBalanced')}</p>
-												</div>
-											)}
-										</div>
-									</CardContent>
-								</Card>
-							</div>
 						</TabsContent>
 
 						{/* Transactions Tab */}

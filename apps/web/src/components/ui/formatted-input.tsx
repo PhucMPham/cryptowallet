@@ -115,9 +115,6 @@ export const FormattedInput = React.forwardRef<HTMLInputElement, FormattedInputP
       }
     };
 
-    // Don't pass custom props to the DOM element
-    const { thousandSeparator: _, decimalSeparator: __, decimalScale: ___, ...inputProps } = props;
-
     return (
       <Input
         ref={ref}
@@ -127,7 +124,7 @@ export const FormattedInput = React.forwardRef<HTMLInputElement, FormattedInputP
         onChange={handleChange}
         onFocus={handleFocus}
         onBlur={handleBlur}
-        {...inputProps}
+        {...props}
       />
     );
   }

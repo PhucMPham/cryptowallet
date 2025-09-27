@@ -89,7 +89,7 @@ export default function CryptoClient() {
 			});
 			refetchDashboard();
 		},
-		onError: (error) => {
+		onError: (error: any) => {
 			toast.error(t('messages.failedToAdd') + ": " + error.message);
 		},
 	});

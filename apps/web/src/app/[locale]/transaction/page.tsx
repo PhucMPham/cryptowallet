@@ -37,8 +37,8 @@ interface Transaction {
 	totalAmount: number;
 	fee: number;
 	transactionDate: string;
-	exchange?: string;
-	notes?: string;
+	exchange?: string | null;
+	notes?: string | null;
 	asset: {
 		id: number;
 		symbol: string;
@@ -47,13 +47,13 @@ interface Transaction {
 	};
 	// P2P specific data (optional)
 	p2pData?: {
-		platform: string;
-		counterparty?: string;
-		bankName?: string;
-		transactionId?: string;
+		platform: string | null;
+		counterparty?: string | null;
+		bankName?: string | null;
+		transactionId?: string | null;
 		exchangeRate: number;
-		marketRate?: number;
-		spreadPercent?: number;
+		marketRate?: number | null;
+		spreadPercent?: number | null;
 	};
 }
 
@@ -85,7 +85,7 @@ export default function TransactionPage() {
 		if (!allTransactions) return [];
 		const assets = new Map();
 		allTransactions.forEach(tx => {
-			if (tx.asset && !assets.has(tx.asset.symbol)) {
+			if (tx && tx.asset && !assets.has(tx.asset.symbol)) {
 				assets.set(tx.asset.symbol, tx.asset);
 			}
 		});
@@ -97,24 +97,25 @@ export default function TransactionPage() {
 		if (!allTransactions) return [];
 		
 		let filtered = allTransactions.filter(tx => {
-			// Search filter
-			const searchMatch = searchTerm === "" || 
-				tx.asset?.symbol.toLowerCase().includes(searchTerm.toLowerCase()) ||
-				tx.asset?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-				tx.exchange?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-				tx.notes?.toLowerCase().includes(searchTerm.toLowerCase());
+				// Search filter
+				const searchMatch = searchTerm === "" || 
+					tx?.asset?.symbol.toLowerCase().includes(searchTerm.toLowerCase()) ||
+					tx?.asset?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+					tx?.exchange?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+					tx?.notes?.toLowerCase().includes(searchTerm.toLowerCase());
 
-			// Asset filter
-			const assetMatch = selectedAsset === "all" || tx.asset?.symbol === selectedAsset;
+				// Asset filter
+				const assetMatch = selectedAsset === "all" || tx?.asset?.symbol === selectedAsset;
 
-			// Type filter
-			const typeMatch = selectedType === "all" || tx.type === selectedType;
+				// Type filter
+				const typeMatch = selectedType === "all" || tx?.type === selectedType;
 
 			return searchMatch && assetMatch && typeMatch;
 		});
 
 		// Sort transactions
 		filtered.sort((a, b) => {
+			if (!a || !b) return 0;
 			let aValue: any, bValue: any;
 			
 			switch (sortBy) {
@@ -127,12 +128,12 @@ export default function TransactionPage() {
 					bValue = b.asset?.symbol || '';
 					break;
 				case 'amount':
-					aValue = a.totalAmount;
-					bValue = b.totalAmount;
+					aValue = a.totalAmount || 0;
+					bValue = b.totalAmount || 0;
 					break;
 				case 'quantity':
-					aValue = a.quantity;
-					bValue = b.quantity;
+					aValue = a.quantity || 0;
+					bValue = b.quantity || 0;
 					break;
 				default:
 					aValue = new Date(a.transactionDate);
@@ -157,25 +158,26 @@ export default function TransactionPage() {
 	const statistics = useMemo(() => {
 		if (!filteredTransactions.length) return null;
 
-		const totalBuys = filteredTransactions.filter(tx => tx.type === 'buy').length;
-		const totalSells = filteredTransactions.filter(tx => tx.type === 'sell').length;
+		const totalBuys = filteredTransactions.filter(tx => tx?.type === 'buy').length;
+		const totalSells = filteredTransactions.filter(tx => tx?.type === 'sell').length;
 		// Calculate investment (BUY transactions only) with proper currency conversion
 		// Debug: Let's see what we're adding
 		let cryptoInvestmentUSD = 0;
 		let p2pInvestmentUSD = 0;
 		
 		const totalInvestment = filteredTransactions
-			.filter(tx => tx.type === 'buy') // Only BUY transactions for investment calculation
+			.filter(tx => tx?.type === 'buy') // Only BUY transactions for investment calculation
 			.reduce((sum, tx) => {
+				if (!tx) return sum;
 				if (tx.source === 'p2p') {
 					// P2P transactions: use quantity (USDT ≈ USD)
-					const p2pAmount = tx.quantity;
+					const p2pAmount = tx.quantity || 0;
 					p2pInvestmentUSD += p2pAmount;
 					return sum + p2pAmount;
 				} else {
 					// Crypto transactions: totalAmount is already in USD
-					cryptoInvestmentUSD += tx.totalAmount;
-					return sum + tx.totalAmount;
+					cryptoInvestmentUSD += (tx.totalAmount || 0);
+					return sum + (tx.totalAmount || 0);
 				}
 			}, 0);
 		
@@ -186,12 +188,13 @@ export default function TransactionPage() {
 			totalInvestmentUSD: totalInvestment.toFixed(2),
 			totalInvestmentVND: (totalInvestment * vndRate).toLocaleString(),
 			totalTransactions: filteredTransactions.length,
-			buyTransactions: filteredTransactions.filter(tx => tx.type === 'buy').length,
-			p2pCount: filteredTransactions.filter(tx => tx.source === 'p2p').length,
-			cryptoCount: filteredTransactions.filter(tx => tx.source === 'crypto').length
+			buyTransactions: filteredTransactions.filter(tx => tx?.type === 'buy').length,
+			p2pCount: filteredTransactions.filter(tx => tx?.source === 'p2p').length,
+			cryptoCount: filteredTransactions.filter(tx => tx?.source === 'crypto').length
 		});
 		// Calculate fees with proper currency conversion
 		const totalFees = filteredTransactions.reduce((sum, tx) => {
+			if (!tx) return sum;
 			if (tx.source === 'p2p') {
 				// P2P fees are in VND, convert to USD
 				return sum + ((tx.fee || 0) / vndRate);
@@ -226,23 +229,25 @@ export default function TransactionPage() {
 
 	// Export transactions
 	const handleExport = () => {
-		const exportData = filteredTransactions.map(tx => ({
-			Date: format(new Date(tx.transactionDate), "yyyy-MM-dd HH:mm:ss"),
-			Asset: tx.asset?.symbol,
-			"Asset Name": tx.asset?.name,
-			Type: tx.type.toUpperCase(),
-			Quantity: tx.quantity,
-			"Price Per Unit (USD)": tx.pricePerUnit,
-			"Price Per Unit (VND)": tx.pricePerUnit * vndRate,
-			"Total Amount (USD)": tx.totalAmount,
-			"Total Amount (VND)": tx.totalAmount * vndRate,
-			"Fee (USD)": tx.fee || 0,
-			"Fee (VND)": (tx.fee || 0) * vndRate,
-			Exchange: tx.source === 'p2p' && tx.p2pData?.platform 
-				? `${tx.p2pData.platform} P2P`
-				: tx.exchange || '',
-			Notes: tx.notes || ''
-		}));
+		const exportData = filteredTransactions
+			.filter(tx => tx != null)
+			.map(tx => ({
+				Date: format(new Date(tx.transactionDate), "yyyy-MM-dd HH:mm:ss"),
+				Asset: tx.asset?.symbol,
+				"Asset Name": tx.asset?.name,
+				Type: tx.type.toUpperCase(),
+				Quantity: tx.quantity,
+				"Price Per Unit (USD)": tx.pricePerUnit,
+				"Price Per Unit (VND)": tx.pricePerUnit * vndRate,
+				"Total Amount (USD)": tx.totalAmount,
+				"Total Amount (VND)": tx.totalAmount * vndRate,
+				"Fee (USD)": tx.fee || 0,
+				"Fee (VND)": (tx.fee || 0) * vndRate,
+				Exchange: tx.source === 'p2p' && tx.p2pData?.platform 
+					? `${tx.p2pData.platform} P2P`
+					: tx.exchange || '',
+				Notes: tx.notes || ''
+			}));
 
 		const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: "application/json" });
 		const url = URL.createObjectURL(blob);
@@ -483,7 +488,8 @@ export default function TransactionPage() {
 								</tr>
 							</thead>
 							<tbody>
-								{paginatedTransactions.map((tx) => (
+								{paginatedTransactions.map((tx) => 
+									tx ? (
 									<tr key={tx.id} className="border-b hover:bg-muted/30">
 										<td className="py-4 px-2">
 											<div>
@@ -568,7 +574,8 @@ export default function TransactionPage() {
 											</Button>
 										</td>
 									</tr>
-								))}
+								) : null
+								)}
 							</tbody>
 						</table>
 					</div>

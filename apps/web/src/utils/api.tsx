@@ -10,11 +10,21 @@ export const api = createTRPCReact<AppRouter>();
 
 export function TRPCProvider({ children }: { children: React.ReactNode }) {
 	const [queryClient] = useState(() => new QueryClient());
-	const [trpcClient] = useState(() =>
-		api.createClient({
+	const [trpcClient] = useState(() => {
+		// Determine the API URL based on environment
+		const getApiUrl = () => {
+			// In production, use the production server URL
+			if (typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
+				return 'https://cryptowallet-server-mbq8dslwx-phucs-projects-174186b3.vercel.app/trpc';
+			}
+			// In development, use environment variable or fallback to localhost
+			return `${process.env.NEXT_PUBLIC_SERVER_URL || 'http://localhost:3003'}/trpc`;
+		};
+
+		return api.createClient({
 			links: [
 				httpBatchLink({
-					url: `${process.env.NEXT_PUBLIC_SERVER_URL}/trpc`,
+					url: getApiUrl(),
 					fetch(url, options) {
 						return fetch(url, {
 							...options,
@@ -23,8 +33,8 @@ export function TRPCProvider({ children }: { children: React.ReactNode }) {
 					},
 				}),
 			],
-		})
-	);
+		});
+	});
 
 	return (
 		<api.Provider client={trpcClient} queryClient={queryClient}>

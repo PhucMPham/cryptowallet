@@ -488,16 +488,29 @@ export const p2pRouter = router({
 				console.groupEnd();
 			}
 
-			// Calculate weighted average exchange rate for P2P buys ONLY
-			// Weighted average = Σ(exchangeRate × cryptoAmount) / Σ(cryptoAmount)
-			// IMPORTANT: Only use P2P transactions, not crypto transactions (which have different rates)
+			// Calculate P2P-only totals for accurate metrics
 			let p2pTotalBought = 0;
+			let p2pTotalSold = 0;
 			let p2pWeightedSum = 0;
+			let p2pFiatSpent = 0;
+			let p2pFiatReceived = 0;
 
+			// Calculate P2P totals separately from crypto transactions
 			for (const tx of buyTransactions) {
 				p2pTotalBought += tx.cryptoAmount;
 				p2pWeightedSum += tx.exchangeRate * tx.cryptoAmount;
+				p2pFiatSpent += tx.fiatAmount + (tx.feeAmount || 0);
 			}
+
+			for (const tx of sellTransactions) {
+				p2pTotalSold += tx.cryptoAmount;
+				p2pFiatReceived += tx.fiatAmount - (tx.feeAmount || 0);
+			}
+
+			// Calculate net P2P investment (buys - sells in USDT)
+			const p2pNetInvestment = p2pTotalBought - p2pTotalSold;
+			// Calculate net P2P fiat investment (VND spent - VND received)
+			const p2pNetFiatInvestment = p2pFiatSpent - p2pFiatReceived;
 
 			if (p2pTotalBought > 0) {
 				weightedAverageRate = p2pWeightedSum / p2pTotalBought;
@@ -585,16 +598,17 @@ export const p2pRouter = router({
 				console.group('[Final Summary - Four Key Numbers]');
 				console.log('🔢 Four key numbers:');
 				console.log('');
-				console.log(`1️⃣  Tổng Đầu Tư USDT (Total Investment)`);
-				console.log(`    ✅ totalBought = ${fmt2(totalBought)} USDT`);
+				console.log(`1️⃣  Tổng Đầu Tư (Total Investment)`);
+				console.log(`    ✅ P2P Net Investment = ${fmt2(p2pNetFiatInvestment)} VND`);
+				console.log(`    (Money Spent: ${fmt2(p2pFiatSpent)} - Money Received: ${fmt2(p2pFiatReceived)} = ${fmt2(p2pNetFiatInvestment)} VND)`);
 				console.log('');
-				console.log(`📊 Số dư hiện tại (Current Holdings)`);
-				console.log(`    Formula: currentHoldings = totalBought - totalSold`);
-				console.log(`    Calculation: ${fmt2(totalBought)} - ${fmt2(totalSold)} = ${fmt2(currentHoldings)} USDT`);
+				console.log(`📊 Số dư USDT còn lại (Remaining USDT Balance)`);
+				console.log(`    Formula: currentHoldings = P2P Bought - USDT Used for Crypto Purchases`);
+				console.log(`    Calculation: ${fmt2(p2pTotalBought)} (P2P) - ${fmt2(totalSold)} (Used) = ${fmt2(currentHoldings)} USDT`);
 				console.log(`    ✅ Số dư hiện tại = ${fmt2(currentHoldings)} USDT`);
 				if (totalSold > 0) {
 					const percentSold = (totalSold / totalBought) * 100;
-					console.log(`    ℹ️ Đã bán: ${fmt2(totalSold)} USDT (${fmt2(percentSold)}% của tổng đầu tư)`);
+					console.log(`    ℹ️ Đã dùng mua crypto khác: ${fmt2(totalSold)} USDT (${fmt2(percentSold)}% của tổng P2P)`);
 				} else {
 					console.log(`    ℹ️ Chưa có giao dịch bán nào`);
 				}
@@ -641,6 +655,13 @@ export const p2pRouter = router({
 					realizedPnL,
 					totalPnL: unrealizedPnL + realizedPnL,
 					netInvested: totalFiatSpent - totalFiatReceived,
+					// Add P2P-only metrics
+					p2pNetInvestment,
+					p2pTotalBought,
+					p2pTotalSold,
+					p2pNetFiatInvestment,
+					p2pFiatSpent,
+					p2pFiatReceived,
 				},
 				transactions,
 				latestMarketRate: latestRate[0] || null,

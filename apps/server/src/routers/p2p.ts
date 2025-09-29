@@ -472,8 +472,21 @@ export const p2pRouter = router({
 			if (DEBUG) {
 				console.group('[Final Summary - Four Key Numbers]');
 				console.log('🔢 Four key numbers:');
-				console.log(`1️⃣  Tổng Đầu Tư USDT (Total Investment): ${fmt2(totalBought)} USDT`);
-				console.log(`    └─ Current Holdings: ${fmt2(currentHoldings)} USDT (after selling ${fmt2(totalSold)} USDT)`);
+				console.log('');
+				console.log(`1️⃣  Tổng Đầu Tư USDT (Total Investment)`);
+				console.log(`    ✅ totalBought = ${fmt2(totalBought)} USDT`);
+				console.log('');
+				console.log(`📊 Số dư hiện tại (Current Holdings)`);
+				console.log(`    Formula: currentHoldings = totalBought - totalSold`);
+				console.log(`    Calculation: ${fmt2(totalBought)} - ${fmt2(totalSold)} = ${fmt2(currentHoldings)} USDT`);
+				console.log(`    ✅ Số dư hiện tại = ${fmt2(currentHoldings)} USDT`);
+				if (totalSold > 0) {
+					const percentSold = (totalSold / totalBought) * 100;
+					console.log(`    ℹ️ Đã bán: ${fmt2(totalSold)} USDT (${fmt2(percentSold)}% của tổng đầu tư)`);
+				} else {
+					console.log(`    ℹ️ Chưa có giao dịch bán nào`);
+				}
+				console.log('');
 				console.log(`2️⃣  Giá Mua Trung Bình (Avg Buy Price): ${fmt2(weightedAverageRate)} VND/USDT`);
 				console.log(`3️⃣  Giá Trị Hiện Tại VNĐ (Current Value): ${fmt2(currentValue)} VND`);
 				console.log(`4️⃣  Lãi/Lỗ (Nếu Bán Ngay) (P/L if sold now): ${unrealizedPnL >= 0 ? '+' : ''}${fmt2(unrealizedPnL)} VND`);

@@ -301,6 +301,38 @@ export const p2pRouter = router({
 				)
 				.orderBy(p2pTransaction.transactionDate);
 
+			// ALSO get USDT transactions from crypto table to include in totals
+			let cryptoUsdtTransactions: any[] = [];
+			if (input.crypto === "USDT") {
+				// Import crypto schema
+				const { cryptoAsset, cryptoTransaction } = await import("../db/schema/crypto");
+
+				// Find USDT asset
+				const usdtAsset = await db
+					.select()
+					.from(cryptoAsset)
+					.where(eq(cryptoAsset.symbol, "USDT"))
+					.limit(1);
+
+				if (usdtAsset.length > 0) {
+					// Get all USDT crypto transactions (excluding P2P ones)
+					cryptoUsdtTransactions = await db
+						.select()
+						.from(cryptoTransaction)
+						.where(
+							and(
+								eq(cryptoTransaction.assetId, usdtAsset[0].id),
+								sql`${cryptoTransaction.exchange} NOT LIKE 'P2P-%'`
+							)
+						)
+						.orderBy(cryptoTransaction.transactionDate);
+
+					if (DEBUG) {
+						console.log(`Found ${cryptoUsdtTransactions.length} non-P2P USDT transactions from crypto table`);
+					}
+				}
+			}
+
 			// Get latest market rate
 			const latestRate = await db
 				.select()
@@ -338,6 +370,61 @@ export const p2pRouter = router({
 			let buyTransactions: typeof transactions = [];
 			let sellTransactions: typeof transactions = [];
 
+			// First, add crypto USDT transactions to totals
+			if (cryptoUsdtTransactions.length > 0) {
+				if (DEBUG) {
+					console.group('[Including non-P2P USDT transactions from crypto table]');
+					console.log(`Processing ${cryptoUsdtTransactions.length} crypto USDT transactions`);
+				}
+
+				// Use a reasonable VND/USD rate if currentMarketRate is 0 (for USDT it's VND/USDT rate)
+				const vndUsdRate = 25000; // Default VND/USD rate
+				const conversionRate = currentMarketRate > 0 ? currentMarketRate : vndUsdRate;
+
+				for (const cryptoTx of cryptoUsdtTransactions) {
+					const quantity = cryptoTx.quantity || 0;
+					const totalAmountUSD = cryptoTx.totalAmount || 0; // This is in USD
+					const feeUSD = cryptoTx.fee || 0; // This is in USD
+
+					// Convert USD amounts to VND for consistency with P2P transactions
+					const totalAmountVND = totalAmountUSD * vndUsdRate;
+					const feeVND = feeUSD * vndUsdRate;
+
+					if (DEBUG) {
+						console.log(`[Crypto Tx ${cryptoTx.id}] ${cryptoTx.type.toUpperCase()} - Date: ${new Date(cryptoTx.transactionDate).toLocaleDateString()}`);
+						console.log(`  Quantity: ${fmt2(quantity)} USDT`);
+						console.log(`  Price: $${fmt2(cryptoTx.pricePerUnit)} per USDT`);
+						console.log(`  Total: $${fmt2(totalAmountUSD)} (${fmt2(totalAmountVND)} VND)`);
+					}
+
+					if (cryptoTx.type === "buy") {
+						totalBought += quantity;
+						totalFiatSpent += totalAmountVND + feeVND;
+						if (DEBUG) {
+							console.log(`  ✅ Added to totalBought: ${fmt2(quantity)} USDT`);
+						}
+					} else if (cryptoTx.type === "sell") {
+						totalSold += quantity;
+						totalFiatReceived += totalAmountVND - feeVND;
+						if (DEBUG) {
+							console.log(`  🔴 Added to totalSold: ${fmt2(quantity)} USDT`);
+						}
+					}
+
+					totalFees += feeVND;
+				}
+
+				if (DEBUG) {
+					console.log('');
+					console.log(`Summary after including crypto transactions:`);
+					console.log(`  totalBought: ${fmt2(totalBought)} USDT`);
+					console.log(`  totalSold: ${fmt2(totalSold)} USDT`);
+					console.log(`  Net holdings from crypto: ${fmt2(totalBought - totalSold)} USDT`);
+					console.groupEnd();
+				}
+			}
+
+			// Then process P2P transactions
 			for (const tx of transactions) {
 				if (DEBUG) {
 					console.group(`[Tx ${tx.id}] ${tx.type.toUpperCase()} - ${tx.crypto}/${tx.fiatCurrency} @ ${fmt2(tx.exchangeRate)} (${new Date(tx.transactionDate).toISOString()})`);

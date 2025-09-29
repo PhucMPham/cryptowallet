@@ -488,14 +488,39 @@ export const p2pRouter = router({
 				console.groupEnd();
 			}
 
-			// Calculate weighted average exchange rate for buys
-			if (totalBought > 0) {
-				weightedAverageRate = totalFiatSpent / totalBought;
+			// Calculate weighted average exchange rate for P2P buys ONLY
+			// Weighted average = Σ(exchangeRate × cryptoAmount) / Σ(cryptoAmount)
+			// IMPORTANT: Only use P2P transactions, not crypto transactions (which have different rates)
+			let p2pTotalBought = 0;
+			let p2pWeightedSum = 0;
+
+			for (const tx of buyTransactions) {
+				p2pTotalBought += tx.cryptoAmount;
+				p2pWeightedSum += tx.exchangeRate * tx.cryptoAmount;
+			}
+
+			if (p2pTotalBought > 0) {
+				weightedAverageRate = p2pWeightedSum / p2pTotalBought;
+
 				if (DEBUG) {
-					console.group('[Weighted Average]');
-					console.log(`weightedAverageRate = totalFiatSpent / totalBought = ${fmt2(totalFiatSpent)} / ${fmt2(totalBought)} = ${fmt2(weightedAverageRate)} ${input.fiatCurrency}/${input.crypto}`);
+					console.group('[Weighted Average Calculation - P2P Only]');
+					console.log(`Formula: weightedAverageRate = Σ(exchangeRate × cryptoAmount) / Σ(cryptoAmount)`);
+					console.log(`Using ONLY P2P transactions (not crypto portfolio transactions):`);
+					for (const tx of buyTransactions) {
+						console.log(`  - Date: ${new Date(tx.transactionDate).toLocaleDateString()}, Rate: ${fmt2(tx.exchangeRate)} × Amount: ${fmt2(tx.cryptoAmount)} = ${fmt2(tx.exchangeRate * tx.cryptoAmount)}`);
+					}
+					console.log(`P2P Weighted sum: ${fmt2(p2pWeightedSum)}`);
+					console.log(`P2P Total bought: ${fmt2(p2pTotalBought)}`);
+					console.log(`P2P weightedAverageRate = ${fmt2(p2pWeightedSum)} / ${fmt2(p2pTotalBought)} = ${fmt2(weightedAverageRate)} ${input.fiatCurrency}/${input.crypto}`);
 					console.groupEnd();
 				}
+			} else if (totalBought > 0) {
+				// If no P2P buy transactions but there are crypto transactions,
+				// we can't calculate a meaningful VND/USDT rate since crypto transactions are in USD
+				if (DEBUG) {
+					console.warn('⚠️ No P2P buy transactions found. Cannot calculate VND/USDT weighted average from USD-based crypto transactions.');
+				}
+				weightedAverageRate = 0;
 			} else if (DEBUG) {
 				console.warn('⚠️ weightedAverageRate undefined: no buy transactions -> defaulting to 0.00');
 			}

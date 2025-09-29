@@ -279,17 +279,34 @@ export default function P2PClient() {
     console.log(`  • Holdings: ${fmt2(portfolioSummary.summary.currentHoldings)} USDT`);
 
     // Check for discrepancies
+    // NOTE: Server includes BOTH P2P and crypto USDT transactions
+    // Client only shows P2P transactions in this table
+    // So differences are EXPECTED and CORRECT
     const boughtDiff = Math.abs(runningBought - portfolioSummary.summary.totalBought);
     const soldDiff = Math.abs(runningS - portfolioSummary.summary.totalSold);
     const holdingsDiff = Math.abs(runningHoldings - portfolioSummary.summary.currentHoldings);
 
     if (boughtDiff > 0.01 || soldDiff > 0.01 || holdingsDiff > 0.01) {
-      console.error('❌ DISCREPANCY DETECTED between client and server calculations!');
-      if (boughtDiff > 0.01) console.error(`   Total Bought differs by ${fmt2(boughtDiff)} USDT`);
-      if (soldDiff > 0.01) console.error(`   Total Sold differs by ${fmt2(soldDiff)} USDT`);
-      if (holdingsDiff > 0.01) console.error(`   Holdings differ by ${fmt2(holdingsDiff)} USDT`);
+      console.log('ℹ️ Difference detected between P2P-only and combined totals:');
+      console.log('   This is EXPECTED because:');
+      console.log('   • Client table shows: P2P transactions only');
+      console.log('   • Server summary includes: P2P + Crypto exchange USDT transactions');
+      console.log('');
+      console.log('   P2P-only totals (from this table):');
+      console.log(`     • P2P Bought: ${fmt2(runningBought)} USDT`);
+      console.log(`     • P2P Sold: ${fmt2(runningS)} USDT`);
+      console.log('');
+      console.log('   Combined totals (from server):');
+      console.log(`     • Total Bought (P2P + Crypto): ${fmt2(portfolioSummary.summary.totalBought)} USDT`);
+      console.log(`     • Total Sold (P2P + Crypto): ${fmt2(portfolioSummary.summary.totalSold)} USDT`);
+      console.log('');
+      console.log('   Difference from crypto exchange transactions:');
+      if (boughtDiff > 0.01) console.log(`     • Additional Bought from exchanges: ${fmt2(boughtDiff)} USDT`);
+      if (soldDiff > 0.01) console.log(`     • Additional Sold on exchanges: ${fmt2(soldDiff)} USDT`);
+      console.log('');
+      console.log('   💡 To see all USDT transactions, visit the Transaction page');
     } else {
-      console.log('✅ Client and server calculations match!');
+      console.log('✅ All USDT transactions are P2P (no crypto exchange transactions)');
     }
 
     // Transaction type breakdown

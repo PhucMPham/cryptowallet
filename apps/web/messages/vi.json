@@ -84,8 +84,9 @@
     "description": "Theo dõi giao dịch mua USDT P2P và tính toán lãi/lỗ",
     "addTransaction": "Thêm Giao Dịch",
     "portfolioSummary": {
-      "usdtBalance": "Số Dư USDT",
+      "usdtBalance": "Tổng Đầu Tư USDT",
       "totalBought": "Tổng đã mua",
+      "currentHoldings": "Số dư hiện tại",
       "averageBuyPrice": "Giá Mua Trung Bình",
       "current": "Hiện tại",
       "currentValueVnd": "Giá Trị Hiện Tại (VNĐ)",

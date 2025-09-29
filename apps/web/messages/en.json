@@ -84,8 +84,9 @@
     "description": "Track your P2P USDT purchases and calculate profit/loss",
     "addTransaction": "Add Transaction",
     "portfolioSummary": {
-      "usdtBalance": "USDT Balance",
+      "usdtBalance": "Total USDT Investment",
       "totalBought": "Total bought",
+      "currentHoldings": "Current holdings",
       "averageBuyPrice": "Average Buy Price",
       "current": "Current",
       "currentValueVnd": "Current Value (VND)",

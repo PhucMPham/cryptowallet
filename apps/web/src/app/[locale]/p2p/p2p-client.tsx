@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useTranslations } from 'next-intl';
 import { api } from "@/utils/api";
 import { formatCurrency, formatVnd, formatNumber, formatPercent, formatCrypto, parseVietnameseNumber } from "@/utils/formatters";
@@ -87,6 +87,89 @@ export default function P2PClient() {
     }
     return <span>{formatted}</span>;
   };
+
+  // Debug logging for portfolio calculations
+  useEffect(() => {
+    const DEBUG = process.env.NEXT_PUBLIC_DEBUG_P2P === '1' || process.env.NODE_ENV !== 'production';
+    if (!DEBUG || !portfolioSummary?.summary) return;
+
+    const summary = portfolioSummary.summary;
+    const fmt2 = (n: number | null | undefined) =>
+      Number(n ?? 0).toLocaleString('vi-VN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+    console.group(`[P2P][Client] Dashboard Calculations - ${summary.crypto}/${summary.fiatCurrency}`);
+    console.log('Received summary from server:', summary);
+    console.log('──────────────────────────────');
+
+    // 1) USDT Balance
+    const usdtBalance = summary.currentHoldings;
+    console.log(`1️⃣ Số Dư USDT = currentHoldings = ${fmt2(usdtBalance)} USDT`);
+    console.log(`   Formula check: totalBought - totalSold = ${fmt2(summary.totalBought)} - ${fmt2(summary.totalSold)} = ${fmt2(summary.totalBought - summary.totalSold)}`);
+
+    // 2) Average Buy Price
+    const avgBuyPrice = summary.weightedAverageRate;
+    if (summary.totalBought === 0) {
+      console.warn('⚠️ [2] Giá Mua Trung Bình: no buy transactions -> defaulting to 0.00');
+    }
+    console.log(`2️⃣ Giá Mua Trung Bình = weightedAverageRate = ${fmt2(avgBuyPrice)} VND/USDT`);
+    console.log(`   Formula check: totalFiatSpent / totalBought = ${fmt2(summary.totalFiatSpent)} / ${fmt2(summary.totalBought)} = ${fmt2(summary.totalBought > 0 ? summary.totalFiatSpent / summary.totalBought : 0)}`);
+
+    // 3) Current Value (VND)
+    const currentValue = summary.currentValue;
+    console.log(`3️⃣ Giá Trị Hiện Tại (VNĐ) = ${formatVnd(currentValue)}`);
+    console.log(`   Formula check: currentHoldings * currentMarketRate = ${fmt2(summary.currentHoldings)} * ${fmt2(summary.currentMarketRate)} = ${formatVnd(summary.currentHoldings * summary.currentMarketRate)}`);
+
+    // 4) P/L if sold now
+    const pnlIfSellNow = summary.unrealizedPnL;
+    const pnlPercent = summary.unrealizedPnLPercent;
+    console.log(`4️⃣ Lãi/Lỗ (Nếu Bán Ngay) = ${pnlIfSellNow >= 0 ? '+' : ''}${formatVnd(pnlIfSellNow)} (${pnlPercent >= 0 ? '+' : ''}${fmt2(pnlPercent)}%)`);
+    console.log(`   Formula check: currentValue - costBasis = ${formatVnd(currentValue)} - ${formatVnd(summary.costBasis)} = ${formatVnd(currentValue - summary.costBasis)}`);
+
+    // Data validation checks
+    console.log('──────────────────────────────');
+    console.log('🔍 Validation checks:');
+    
+    const computedHoldings = summary.totalBought - summary.totalSold;
+    if (Math.abs(computedHoldings - summary.currentHoldings) > 0.0001) {
+      console.warn(`⚠️ Holdings mismatch: computed ${fmt2(computedHoldings)} != server ${fmt2(summary.currentHoldings)}`);
+    } else {
+      console.log('✅ Holdings calculation verified');
+    }
+    
+    const computedAvgPrice = summary.totalBought > 0 ? summary.totalFiatSpent / summary.totalBought : 0;
+    if (Math.abs(computedAvgPrice - summary.weightedAverageRate) > 0.01) {
+      console.warn(`⚠️ Avg price mismatch: computed ${fmt2(computedAvgPrice)} != server ${fmt2(summary.weightedAverageRate)}`);
+    } else {
+      console.log('✅ Average price calculation verified');
+    }
+    
+    const computedValue = summary.currentHoldings * summary.currentMarketRate;
+    if (Math.abs(computedValue - summary.currentValue) > 0.01) {
+      console.warn(`⚠️ Current value mismatch: computed ${fmt2(computedValue)} != server ${fmt2(summary.currentValue)}`);
+    } else {
+      console.log('✅ Current value calculation verified');
+    }
+    
+    const computedPnL = summary.currentValue - summary.costBasis;
+    if (Math.abs(computedPnL - summary.unrealizedPnL) > 0.01) {
+      console.warn(`⚠️ PnL mismatch: computed ${fmt2(computedPnL)} != server ${fmt2(summary.unrealizedPnL)}`);
+    } else {
+      console.log('✅ P/L calculation verified');
+    }
+
+    // Edge case warnings
+    if (summary.currentMarketRate === 0) {
+      console.warn('⚠️ No market rate -> current value and PnL may be inaccurate');
+    }
+    if (summary.currentHoldings < 0) {
+      console.warn(`⚠️ Negative holdings (${fmt2(summary.currentHoldings)}) detected`);
+    }
+    if (summary.totalBought === 0 && summary.totalSold > 0) {
+      console.warn('⚠️ Sold USDT without any buy records');
+    }
+
+    console.groupEnd();
+  }, [portfolioSummary]);
 
   return (
     <TooltipProvider>

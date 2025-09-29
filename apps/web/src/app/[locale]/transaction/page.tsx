@@ -241,13 +241,38 @@ export default function TransactionPage() {
 		console.log('──────────────────────────────');
 		console.log('📊 OVERALL USDT POSITION:');
 
+		// Calculate totalBought from all buy transactions
 		const totalBought = buyTransactions.reduce((sum, tx) => sum + (tx?.quantity || 0), 0);
-		const totalSold = sellTransactions.reduce((sum, tx) => sum + (tx?.quantity || 0), 0);
-		const currentHoldings = totalBought - totalSold;
+		console.log(`1️⃣ Total Bought = Sum of all BUY quantities`);
+		if (buyTransactions.length > 0) {
+			const buyQuantities = buyTransactions.map(tx => tx?.quantity || 0);
+			console.log(`   Formula: ${buyQuantities.map(q => fmt2(q)).join(' + ')}`);
+		}
+		console.log(`   ✅ Total Bought = ${fmt2(totalBought)} USDT`);
+		console.log('');
 
-		console.log(`   Formula: Current Holdings = Total Bought - Total Sold`);
+		// Calculate totalSold from all sell transactions
+		const totalSold = sellTransactions.reduce((sum, tx) => sum + (tx?.quantity || 0), 0);
+		console.log(`2️⃣ Total Sold = Sum of all SELL quantities`);
+		if (sellTransactions.length > 0) {
+			console.log(`   Formula: Sum of ${sellTransactions.length} SELL transactions`);
+			sellTransactions.forEach((tx, i) => {
+				console.log(`     SELL #${i + 1}: ${fmt2(tx?.quantity || 0)} USDT`);
+			});
+			const sellQuantities = sellTransactions.map(tx => tx?.quantity || 0);
+			console.log(`   Calculation: ${sellQuantities.map(q => fmt2(q)).join(' + ')} = ${fmt2(totalSold)} USDT`);
+		} else {
+			console.log(`   No SELL transactions found`);
+		}
+		console.log(`   ✅ Total Sold = ${fmt2(totalSold)} USDT`);
+		console.log('');
+
+		// Calculate current holdings
+		const currentHoldings = totalBought - totalSold;
+		console.log(`3️⃣ Số dư hiện tại (Current Holdings)`);
+		console.log(`   Formula: currentHoldings = totalBought - totalSold`);
 		console.log(`   Calculation: ${fmt2(totalBought)} - ${fmt2(totalSold)} = ${fmt2(currentHoldings)} USDT`);
-		console.log(`   ✅ Current USDT Holdings: ${fmt2(currentHoldings)} USDT`);
+		console.log(`   ✅ Current USDT Holdings = ${fmt2(currentHoldings)} USDT`);
 
 		if (totalSold > totalBought) {
 			console.error('⚠️ WARNING: Sold more USDT than bought! Check data consistency.');

@@ -107,20 +107,25 @@ export default function P2PClient() {
 
     console.log(`1️⃣ Tổng Đầu Tư USDT (Total Investment)`);
     console.log(`   ✅ totalBought = ${fmt2(usdtInvestment)} USDT`);
+    console.log(`   (Sum of all BUY transactions)`);
     console.log('');
 
-    console.log(`📊 Số dư hiện tại (Current Holdings)`);
-    console.log(`   Formula: currentHoldings = totalBought - totalSold`);
-    console.log(`   Calculation: ${fmt2(summary.totalBought)} - ${fmt2(summary.totalSold)} = ${fmt2(currentHoldings)} USDT`);
-    console.log(`   ✅ Số dư hiện tại = ${fmt2(currentHoldings)} USDT`);
-
+    console.log(`2️⃣ Total Sold USDT`);
     if (summary.totalSold > 0) {
-      console.log(`   ℹ️ Đã bán: ${fmt2(summary.totalSold)} USDT`);
+      console.log(`   ✅ totalSold = ${fmt2(summary.totalSold)} USDT`);
+      console.log(`   (Sum of all SELL transactions)`);
       const percentSold = (summary.totalSold / summary.totalBought) * 100;
       console.log(`   📉 Tỷ lệ đã bán: ${fmt2(percentSold)}% của tổng đầu tư`);
     } else {
-      console.log(`   ℹ️ Chưa có giao dịch bán nào`);
+      console.log(`   ✅ totalSold = 0,00 USDT`);
+      console.log(`   ℹ️ No SELL transactions found - that's why totalSold = 0,00`);
     }
+    console.log('');
+
+    console.log(`3️⃣ Số dư hiện tại (Current Holdings)`);
+    console.log(`   Formula: currentHoldings = totalBought - totalSold`);
+    console.log(`   Calculation: ${fmt2(summary.totalBought)} - ${fmt2(summary.totalSold)} = ${fmt2(currentHoldings)} USDT`);
+    console.log(`   ✅ Số dư hiện tại = ${fmt2(currentHoldings)} USDT`);
     console.log('');
 
     // 2) Average Buy Price

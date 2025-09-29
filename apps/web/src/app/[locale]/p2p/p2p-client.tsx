@@ -314,14 +314,12 @@ export default function P2PClient() {
     const sellTransactions = transactions.filter(tx => tx.type === 'sell');
 
     console.log('');
-    console.log('📊 Transaction Breakdown:');
-    console.log(`  • Buy transactions: ${buyTransactions.length}`);
-    console.log(`  • Sell transactions: ${sellTransactions.length}`);
-
-    if (sellTransactions.length === 0) {
-      console.warn('⚠️ NO SELL TRANSACTIONS FOUND - This explains why totalSold = 0.00');
-      console.log('💡 To test sell functionality, add a SELL transaction through the UI');
-    }
+    console.log('📊 P2P Transaction Breakdown (this table only):');
+    console.log(`  • P2P Buy transactions: ${buyTransactions.length}`);
+    console.log(`  • P2P Sell transactions: ${sellTransactions.length}`);
+    console.log('');
+    console.log('ℹ️ Note: The summary cards above include ALL USDT transactions');
+    console.log('   (both P2P shown here + crypto exchange transactions)');
 
     console.groupEnd();
   }, [transactions, portfolioSummary]);

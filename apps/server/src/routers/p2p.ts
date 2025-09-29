@@ -472,7 +472,8 @@ export const p2pRouter = router({
 			if (DEBUG) {
 				console.group('[Final Summary - Four Key Numbers]');
 				console.log('🔢 Four key numbers:');
-				console.log(`1️⃣  Số Dư USDT (USDT Balance): ${fmt2(currentHoldings)} USDT`);
+				console.log(`1️⃣  Tổng Đầu Tư USDT (Total Investment): ${fmt2(totalBought)} USDT`);
+				console.log(`    └─ Current Holdings: ${fmt2(currentHoldings)} USDT (after selling ${fmt2(totalSold)} USDT)`);
 				console.log(`2️⃣  Giá Mua Trung Bình (Avg Buy Price): ${fmt2(weightedAverageRate)} VND/USDT`);
 				console.log(`3️⃣  Giá Trị Hiện Tại VNĐ (Current Value): ${fmt2(currentValue)} VND`);
 				console.log(`4️⃣  Lãi/Lỗ (Nếu Bán Ngay) (P/L if sold now): ${unrealizedPnL >= 0 ? '+' : ''}${fmt2(unrealizedPnL)} VND`);

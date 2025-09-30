@@ -117,8 +117,8 @@
       "currentHoldings": "Số dư hiện tại",
       "averageBuyPrice": "Giá Mua Trung Bình",
       "current": "Hiện tại",
-      "currentValueVnd": "Giá Trị Hiện Tại (VNĐ)",
-      "costBasis": "Giá vốn",
+      "currentValueVnd": "Số dư hiện tại (VND)",
+      "costBasis": "Số dư hiện tại",
       "profitLoss": "Lãi/Lỗ (Nếu Bán Ngay)"
     },
     "transactionHistory": {

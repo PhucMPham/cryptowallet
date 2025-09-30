@@ -88,241 +88,6 @@ export default function P2PClient() {
     return <span>{formatted}</span>;
   };
 
-  // Debug logging for portfolio calculations
-  useEffect(() => {
-    const DEBUG = process.env.NEXT_PUBLIC_DEBUG_P2P === '1' || process.env.NODE_ENV !== 'production';
-    if (!DEBUG || !portfolioSummary?.summary) return;
-
-    const summary = portfolioSummary.summary;
-    const fmt2 = (n: number | null | undefined) =>
-      Number(n ?? 0).toLocaleString('vi-VN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-
-    console.group(`[P2P][Client] Dashboard Calculations - ${summary.crypto}/${summary.fiatCurrency}`);
-    console.log('Received summary from server:', summary);
-    console.log('──────────────────────────────');
-
-    // 1) USDT Investment (Total Bought) & Current Holdings
-    const usdtInvestment = summary.totalBought;
-    const currentHoldings = summary.currentHoldings;
-
-    console.log(`1️⃣ Tổng Đầu Tư USDT (Total Investment)`);
-    console.log(`   ✅ totalBought = ${fmt2(usdtInvestment)} USDT`);
-    console.log(`   (Sum of all BUY transactions)`);
-    console.log('');
-
-    console.log(`2️⃣ Total Sold USDT`);
-    if (summary.totalSold > 0) {
-      console.log(`   ✅ totalSold = ${fmt2(summary.totalSold)} USDT`);
-      console.log(`   (Sum of all SELL transactions)`);
-      const percentSold = (summary.totalSold / summary.totalBought) * 100;
-      console.log(`   📉 Tỷ lệ đã bán: ${fmt2(percentSold)}% của tổng đầu tư`);
-    } else {
-      console.log(`   ✅ totalSold = 0,00 USDT`);
-      console.log(`   ℹ️ No SELL transactions found - that's why totalSold = 0,00`);
-    }
-    console.log('');
-
-    console.log(`3️⃣ Số dư hiện tại (Current Holdings)`);
-    console.log(`   Formula: currentHoldings = totalBought - totalSold`);
-    console.log(`   Calculation: ${fmt2(summary.totalBought)} - ${fmt2(summary.totalSold)} = ${fmt2(currentHoldings)} USDT`);
-    console.log(`   ✅ Số dư hiện tại = ${fmt2(currentHoldings)} USDT`);
-    console.log('');
-
-    // 2) Average Buy Price
-    const avgBuyPrice = summary.weightedAverageRate;
-    if (summary.totalBought === 0) {
-      console.warn('⚠️ [2] Giá Mua Trung Bình: no buy transactions -> defaulting to 0.00');
-    }
-    console.log(`2️⃣ Giá Mua Trung Bình = weightedAverageRate = ${fmt2(avgBuyPrice)} VND/USDT`);
-    console.log(`   Formula check: totalFiatSpent / totalBought = ${fmt2(summary.totalFiatSpent)} / ${fmt2(summary.totalBought)} = ${fmt2(summary.totalBought > 0 ? summary.totalFiatSpent / summary.totalBought : 0)}`);
-
-    // 3) Current Value (VND)
-    const currentValue = summary.currentValue;
-    console.log(`3️⃣ Giá Trị Hiện Tại (VNĐ) = ${formatVnd(currentValue)}`);
-    console.log(`   Formula check: currentHoldings * currentMarketRate = ${fmt2(summary.currentHoldings)} * ${fmt2(summary.currentMarketRate)} = ${formatVnd(summary.currentHoldings * summary.currentMarketRate)}`);
-
-    // 4) P/L if sold now
-    const pnlIfSellNow = summary.unrealizedPnL;
-    const pnlPercent = summary.unrealizedPnLPercent;
-    console.log(`4️⃣ Lãi/Lỗ (Nếu Bán Ngay) = ${pnlIfSellNow >= 0 ? '+' : ''}${formatVnd(pnlIfSellNow)} (${pnlPercent >= 0 ? '+' : ''}${fmt2(pnlPercent)}%)`);
-    console.log(`   Formula check: currentValue - costBasis = ${formatVnd(currentValue)} - ${formatVnd(summary.costBasis)} = ${formatVnd(currentValue - summary.costBasis)}`);
-
-    // Data validation checks
-    console.log('──────────────────────────────');
-    console.log('🔍 Validation checks:');
-
-    const computedHoldings = summary.totalBought - summary.totalSold;
-    if (Math.abs(computedHoldings - summary.currentHoldings) > 0.0001) {
-      console.warn(`⚠️ Holdings mismatch: computed ${fmt2(computedHoldings)} != server ${fmt2(summary.currentHoldings)}`);
-    } else {
-      console.log('✅ Holdings calculation verified');
-    }
-
-    const computedAvgPrice = summary.totalBought > 0 ? summary.totalFiatSpent / summary.totalBought : 0;
-    if (Math.abs(computedAvgPrice - summary.weightedAverageRate) > 0.01) {
-      console.warn(`⚠️ Avg price mismatch: computed ${fmt2(computedAvgPrice)} != server ${fmt2(summary.weightedAverageRate)}`);
-    } else {
-      console.log('✅ Average price calculation verified');
-    }
-
-    const computedValue = summary.currentHoldings * summary.currentMarketRate;
-    if (Math.abs(computedValue - summary.currentValue) > 0.01) {
-      console.warn(`⚠️ Current value mismatch: computed ${fmt2(computedValue)} != server ${fmt2(summary.currentValue)}`);
-    } else {
-      console.log('✅ Current value calculation verified');
-    }
-
-    const computedPnL = summary.currentValue - summary.costBasis;
-    if (Math.abs(computedPnL - summary.unrealizedPnL) > 0.01) {
-      console.warn(`⚠️ PnL mismatch: computed ${fmt2(computedPnL)} != server ${fmt2(summary.unrealizedPnL)}`);
-    } else {
-      console.log('✅ P/L calculation verified');
-    }
-
-    // Edge case warnings
-    if (summary.currentMarketRate === 0) {
-      console.warn('⚠️ No market rate -> current value and PnL may be inaccurate');
-    }
-    if (summary.currentHoldings < 0) {
-      console.warn(`⚠️ Negative holdings (${fmt2(summary.currentHoldings)}) detected`);
-    }
-    if (summary.totalBought === 0 && summary.totalSold > 0) {
-      console.warn('⚠️ Sold USDT without any buy records');
-    }
-
-    console.groupEnd();
-  }, [portfolioSummary]);
-
-  // Enhanced debug logging for individual transactions
-  useEffect(() => {
-    const DEBUG = process.env.NEXT_PUBLIC_DEBUG_P2P === '1' || process.env.NODE_ENV !== 'production';
-    if (!DEBUG || !transactions || !portfolioSummary?.summary) return;
-
-    const fmt2 = (n: number | null | undefined) =>
-      Number(n ?? 0).toLocaleString('vi-VN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-
-    console.group(`[P2P][Client] Transaction Analysis - ${transactions.length} transactions`);
-
-    // Create a table view of all transactions
-    const transactionTable: any[] = [];
-    let runningBought = 0;
-    let runningS = 0;
-    let runningHoldings = 0;
-    let runningFiatSpent = 0;
-    let runningFiatReceived = 0;
-
-    // Sort transactions by date to show chronological order
-    const sortedTx = [...transactions].sort((a, b) =>
-      new Date(a.transactionDate).getTime() - new Date(b.transactionDate).getTime()
-    );
-
-    console.log('📊 Transaction Timeline (chronological order):');
-    console.log('──────────────────────────────');
-
-    sortedTx.forEach((tx, index) => {
-      const isBuy = tx.type === 'buy';
-
-      // Update running totals
-      if (isBuy) {
-        runningBought += tx.cryptoAmount;
-        runningFiatSpent += tx.fiatAmount + (tx.feeAmount || 0);
-      } else {
-        runningS += tx.cryptoAmount;
-        runningFiatReceived += tx.fiatAmount - (tx.feeAmount || 0);
-      }
-      runningHoldings = runningBought - runningS;
-
-      const txInfo = {
-        '#': index + 1,
-        'Date': format(new Date(tx.transactionDate), 'dd/MM HH:mm'),
-        'Type': tx.type.toUpperCase(),
-        'Amount': `${fmt2(tx.cryptoAmount)} USDT`,
-        'Rate': fmt2(tx.exchangeRate),
-        'Value': fmt2(tx.fiatAmount),
-        'Fee': tx.feeAmount ? fmt2(tx.feeAmount) : '-',
-        'Platform': tx.platform || '-',
-        '💰 Total Bought': fmt2(runningBought),
-        '💸 Total Sold': fmt2(runningS),
-        '📊 Holdings': fmt2(runningHoldings)
-      };
-
-      transactionTable.push(txInfo);
-
-      // Log individual transaction details
-      console.log(`[${index + 1}/${sortedTx.length}] ${isBuy ? '🟢 BUY' : '🔴 SELL'} ${format(new Date(tx.transactionDate), 'dd/MM/yyyy HH:mm')}`);
-      console.log(`   Amount: ${fmt2(tx.cryptoAmount)} USDT @ ${fmt2(tx.exchangeRate)} VND/USDT = ${fmt2(tx.fiatAmount)} VND`);
-      if (tx.feeAmount) {
-        console.log(`   Fee: ${fmt2(tx.feeAmount)} VND`);
-      }
-      console.log(`   Platform: ${tx.platform || 'N/A'}, Counterparty: ${tx.counterparty || 'N/A'}`);
-      console.log(`   Running totals after this tx:`);
-      console.log(`     • Total Bought: ${fmt2(runningBought)} USDT`);
-      console.log(`     • Total Sold: ${fmt2(runningS)} USDT`);
-      console.log(`     • Current Holdings: ${fmt2(runningHoldings)} USDT`);
-      console.log('');
-    });
-
-    // Display summary table
-    console.log('📋 Transaction Summary Table:');
-    console.table(transactionTable);
-
-    // Final verification
-    console.log('──────────────────────────────');
-    console.log('🔍 Final Verification:');
-    console.log(`Client-side calculations:`);
-    console.log(`  • Total Bought: ${fmt2(runningBought)} USDT`);
-    console.log(`  • Total Sold: ${fmt2(runningS)} USDT`);
-    console.log(`  • Holdings: ${fmt2(runningHoldings)} USDT`);
-    console.log(`Server-side values:`);
-    console.log(`  • Total Bought: ${fmt2(portfolioSummary.summary.totalBought)} USDT`);
-    console.log(`  • Total Sold: ${fmt2(portfolioSummary.summary.totalSold)} USDT`);
-    console.log(`  • Holdings: ${fmt2(portfolioSummary.summary.currentHoldings)} USDT`);
-
-    // Check for discrepancies
-    // NOTE: Server includes BOTH P2P and crypto USDT transactions
-    // Client only shows P2P transactions in this table
-    // So differences are EXPECTED and CORRECT
-    const boughtDiff = Math.abs(runningBought - portfolioSummary.summary.totalBought);
-    const soldDiff = Math.abs(runningS - portfolioSummary.summary.totalSold);
-    const holdingsDiff = Math.abs(runningHoldings - portfolioSummary.summary.currentHoldings);
-
-    if (boughtDiff > 0.01 || soldDiff > 0.01 || holdingsDiff > 0.01) {
-      console.log('ℹ️ Difference detected between P2P-only and combined totals:');
-      console.log('   This is EXPECTED because:');
-      console.log('   • Client table shows: P2P transactions only');
-      console.log('   • Server summary includes: P2P + Crypto exchange USDT transactions');
-      console.log('');
-      console.log('   P2P-only totals (from this table):');
-      console.log(`     • P2P Bought: ${fmt2(runningBought)} USDT`);
-      console.log(`     • P2P Sold: ${fmt2(runningS)} USDT`);
-      console.log('');
-      console.log('   Combined totals (from server):');
-      console.log(`     • Total Bought (P2P + Crypto): ${fmt2(portfolioSummary.summary.totalBought)} USDT`);
-      console.log(`     • Total Sold (P2P + Crypto): ${fmt2(portfolioSummary.summary.totalSold)} USDT`);
-      console.log('');
-      console.log('   Difference from crypto exchange transactions:');
-      if (boughtDiff > 0.01) console.log(`     • Additional Bought from exchanges: ${fmt2(boughtDiff)} USDT`);
-      if (soldDiff > 0.01) console.log(`     • Additional Sold on exchanges: ${fmt2(soldDiff)} USDT`);
-      console.log('');
-      console.log('   💡 To see all USDT transactions, visit the Transaction page');
-    } else {
-      console.log('✅ All USDT transactions are P2P (no crypto exchange transactions)');
-    }
-
-    // Transaction type breakdown
-    const buyTransactions = transactions.filter(tx => tx.type === 'buy');
-    const sellTransactions = transactions.filter(tx => tx.type === 'sell');
-
-    console.log('');
-    console.log('📊 P2P Transaction Breakdown (this table only):');
-    console.log(`  • P2P Buy transactions: ${buyTransactions.length}`);
-    console.log(`  • P2P Sell transactions: ${sellTransactions.length}`);
-    console.log('');
-    console.log('ℹ️ Note: The summary cards above include ALL USDT transactions');
-    console.log('   (both P2P shown here + crypto exchange transactions)');
-
-    console.groupEnd();
-  }, [transactions, portfolioSummary]);
 
   return (
     <TooltipProvider>
@@ -349,10 +114,10 @@ export default function P2PClient() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
-                  {formatNumber(portfolioSummary.summary.totalBought)} USDT
+                  {formatVnd(portfolioSummary.summary.p2pNetFiatInvestment ?? portfolioSummary.summary.netInvested)}
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
-                  {t('portfolioSummary.currentHoldings')}: {formatNumber(portfolioSummary.summary.currentHoldings)} USDT
+                  {formatNumber(portfolioSummary.summary.p2pNetInvestment ?? (portfolioSummary.summary.totalBought - portfolioSummary.summary.totalSold))} USDT
                 </p>
               </CardContent>
             </Card>
@@ -391,7 +156,7 @@ export default function P2PClient() {
                   {formatCurrencyWithSymbol(portfolioSummary.summary.currentValue, "VND")}
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
-                  {t('portfolioSummary.costBasis')}: {formatCurrencyWithSymbol(portfolioSummary.summary.costBasis, "VND")}
+                  {t('portfolioSummary.costBasis')}: {formatNumber(portfolioSummary.summary.currentHoldings, 2)} USDT
                 </p>
               </CardContent>
             </Card>
@@ -431,15 +196,17 @@ export default function P2PClient() {
                   <TableHead className="text-right">{t('transactionHistory.total')}</TableHead>
                   <TableHead>{t('transactionHistory.platform')}</TableHead>
                   <TableHead>{t('transactionHistory.counterparty')}</TableHead>
+                  <TableHead>{t('details.transactionId')}</TableHead>
+                  <TableHead>{t('details.notes')}</TableHead>
                   <TableHead className="w-[50px]">{t('transactionHistory.actions')}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {transactions?.map((tx) => (
                   <TableRow key={tx.id} className="group relative">
-                    <TableCell>{format(new Date(tx.transactionDate), "dd/MM/yyyy HH:mm")}</TableCell>
+                    <TableCell>{format(new Date(tx.transactionDate), "dd/MM/yyyy")}</TableCell>
                     <TableCell>
-                      <Badge variant={tx.type === "buy" ? "default" : "secondary"}>
+                      <Badge variant={tx.type === "buy" ? "default" : "destructive"}>
                         {tx.type === "buy" ? (
                           <TrendingUp className="mr-1 h-3 w-3" />
                         ) : (
@@ -459,6 +226,8 @@ export default function P2PClient() {
                     </TableCell>
                     <TableCell>{tx.platform || "-"}</TableCell>
                     <TableCell>{tx.counterparty || "-"}</TableCell>
+                    <TableCell className="max-w-xs truncate">{tx.transactionId || "-"}</TableCell>
+                    <TableCell className="max-w-xs truncate">{tx.notes || "-"}</TableCell>
                     <TableCell>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>

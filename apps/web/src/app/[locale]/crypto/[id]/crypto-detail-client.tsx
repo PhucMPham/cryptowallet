@@ -8,18 +8,25 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
 } from "@/components/ui/table";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { formatCurrency, formatVnd, formatNumber, formatPercent, formatCrypto } from "@/utils/formatters";
 import { format } from "date-fns";
-import { ArrowLeft, TrendingUp, TrendingDown, DollarSign, Activity, Calendar, Hash } from "lucide-react";
+import { ArrowLeft, TrendingUp, TrendingDown, DollarSign, Activity, Calendar, Hash, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { LazyImage } from "@/components/lazy-image";
+import { EditCryptoTransactionDialog } from "@/components/crypto/EditCryptoTransactionDialog";
 
 interface CryptoDetailClientProps {
   assetId: number;
@@ -28,7 +35,8 @@ interface CryptoDetailClientProps {
 export default function CryptoDetailClient({ assetId }: CryptoDetailClientProps) {
   const t = useTranslations('cryptoDetail');
   const router = useRouter();
-  
+  const [editingTransaction, setEditingTransaction] = useState<any>(null);
+
   // Fetch asset details
   const { data: asset, isLoading: assetLoading } = api.crypto.getAssetById.useQuery(
     { id: assetId },
@@ -36,7 +44,7 @@ export default function CryptoDetailClient({ assetId }: CryptoDetailClientProps)
   );
 
   // Fetch transactions for this asset
-  const { data: transactions, isLoading: transactionsLoading } = api.crypto.getTransactionsByAssetId.useQuery(
+  const { data: transactions, isLoading: transactionsLoading, refetch: refetchTransactions } = api.crypto.getTransactionsByAssetId.useQuery(
     { assetId },
     { enabled: !!assetId }
   );
@@ -181,43 +189,67 @@ export default function CryptoDetailClient({ assetId }: CryptoDetailClientProps)
             </TabsList>
             
             <TabsContent value="all">
-              <TransactionsTable 
-                transactions={transactions || []} 
+              <TransactionsTable
+                transactions={transactions || []}
                 filter="all"
                 t={t}
+                assetSymbol={asset.asset.symbol}
+                onEdit={setEditingTransaction}
               />
             </TabsContent>
-            
+
             <TabsContent value="buy">
-              <TransactionsTable 
-                transactions={transactions?.filter((tx: any) => tx.type === 'buy') || []} 
+              <TransactionsTable
+                transactions={transactions?.filter((tx: any) => tx.type === 'buy') || []}
                 filter="buy"
                 t={t}
+                assetSymbol={asset.asset.symbol}
+                onEdit={setEditingTransaction}
               />
             </TabsContent>
-            
+
             <TabsContent value="sell">
-              <TransactionsTable 
+              <TransactionsTable
                 transactions={transactions?.filter((tx: any) => tx.type === 'sell') || []}
                 filter="sell"
                 t={t}
+                assetSymbol={asset.asset.symbol}
+                onEdit={setEditingTransaction}
               />
             </TabsContent>
           </Tabs>
         </CardContent>
       </Card>
+
+      {/* Edit Transaction Dialog */}
+      {editingTransaction && (
+        <EditCryptoTransactionDialog
+          open={!!editingTransaction}
+          onOpenChange={(open) => !open && setEditingTransaction(null)}
+          transaction={editingTransaction}
+          assetSymbol={asset.asset.symbol}
+          onSuccess={() => {
+            refetchTransactions();
+            setEditingTransaction(null);
+          }}
+        />
+      )}
     </div>
   );
 }
 
-function TransactionsTable({ 
-  transactions, 
-  filter, 
-  t 
-}: { 
-  transactions: any[]; 
+function TransactionsTable({
+  transactions,
+  filter,
+  t,
+  assetSymbol,
+  onEdit
+}: {
+  transactions: any[];
   filter: string;
   t: any;
+  assetSymbol: string;
+  onEdit: (tx: any) => void;
 }) {
   if (transactions.length === 0) {
     return (
@@ -239,11 +271,12 @@ function TransactionsTable({
           <TableHead className="text-right">{t('fee')}</TableHead>
           <TableHead>{t('source')}</TableHead>
           <TableHead>{t('exchange')}</TableHead>
+          <TableHead className="w-[50px]">{t('actions')}</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
         {transactions.map((tx) => (
-          <TableRow key={tx.id}>
+          <TableRow key={tx.id} className="group">
             <TableCell>
               {format(new Date(tx.transactionDate), 'dd/MM/yyyy HH:mm')}
             </TableCell>
@@ -252,7 +285,7 @@ function TransactionsTable({
                 {t(tx.type)}
               </Badge>
             </TableCell>
-            <TableCell className="text-right">{formatCrypto(tx.quantity, tx.asset?.symbol)}</TableCell>
+            <TableCell className="text-right">{formatCrypto(tx.quantity, assetSymbol)}</TableCell>
             <TableCell className="text-right">{formatCurrency(tx.pricePerUnit)}</TableCell>
             <TableCell className="text-right">
               {formatCurrency(tx.quantity * tx.pricePerUnit)}
@@ -261,13 +294,35 @@ function TransactionsTable({
               {tx.fee > 0 ? formatCurrency(tx.fee) : '-'}
             </TableCell>
             <TableCell>
-              {tx.paymentSource === 'USDT' ? (
+              {(tx.totalAmount === 0 || tx.notes?.includes('Purchased with USDT')) ? (
                 <Badge variant="outline">USDT</Badge>
               ) : (
                 <span className="text-muted-foreground">Cash</span>
               )}
             </TableCell>
             <TableCell>{tx.exchange || '-'}</TableCell>
+            <TableCell>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                  >
+                    <span className="sr-only">Open menu</span>
+                    <MoreHorizontal className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem
+                    className="cursor-pointer"
+                    onClick={() => onEdit(tx)}
+                  >
+                    <Pencil className="mr-2 h-4 w-4" />
+                    {t('edit')}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </TableCell>
           </TableRow>
         ))}
       </TableBody>

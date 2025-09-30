@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useTranslations } from 'next-intl';
 import { api } from "@/utils/api";
 import { formatCurrency, formatVnd, formatNumber, formatPercent, formatCrypto, parseVietnameseNumber } from "@/utils/formatters";
@@ -88,6 +88,7 @@ export default function P2PClient() {
     return <span>{formatted}</span>;
   };
 
+
   return (
     <TooltipProvider>
       <div className="container mx-auto py-6 space-y-6">
@@ -113,10 +114,10 @@ export default function P2PClient() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
-                  {formatNumber(portfolioSummary.summary.currentHoldings)} USDT
+                  {formatVnd(portfolioSummary.summary.p2pNetFiatInvestment ?? portfolioSummary.summary.netInvested)}
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
-                  {t('portfolioSummary.totalBought')}: {formatNumber(portfolioSummary.summary.totalBought)} USDT
+                  {formatNumber(portfolioSummary.summary.p2pNetInvestment ?? (portfolioSummary.summary.totalBought - portfolioSummary.summary.totalSold))} USDT
                 </p>
               </CardContent>
             </Card>
@@ -155,7 +156,7 @@ export default function P2PClient() {
                   {formatCurrencyWithSymbol(portfolioSummary.summary.currentValue, "VND")}
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
-                  {t('portfolioSummary.costBasis')}: {formatCurrencyWithSymbol(portfolioSummary.summary.costBasis, "VND")}
+                  {t('portfolioSummary.costBasis')}: {formatNumber(portfolioSummary.summary.currentHoldings, 2)} USDT
                 </p>
               </CardContent>
             </Card>
@@ -195,15 +196,17 @@ export default function P2PClient() {
                   <TableHead className="text-right">{t('transactionHistory.total')}</TableHead>
                   <TableHead>{t('transactionHistory.platform')}</TableHead>
                   <TableHead>{t('transactionHistory.counterparty')}</TableHead>
+                  <TableHead>{t('details.transactionId')}</TableHead>
+                  <TableHead>{t('details.notes')}</TableHead>
                   <TableHead className="w-[50px]">{t('transactionHistory.actions')}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {transactions?.map((tx) => (
                   <TableRow key={tx.id} className="group relative">
-                    <TableCell>{format(new Date(tx.transactionDate), "dd/MM/yyyy HH:mm")}</TableCell>
+                    <TableCell>{format(new Date(tx.transactionDate), "dd/MM/yyyy")}</TableCell>
                     <TableCell>
-                      <Badge variant={tx.type === "buy" ? "default" : "secondary"}>
+                      <Badge variant={tx.type === "buy" ? "default" : "destructive"}>
                         {tx.type === "buy" ? (
                           <TrendingUp className="mr-1 h-3 w-3" />
                         ) : (
@@ -223,6 +226,8 @@ export default function P2PClient() {
                     </TableCell>
                     <TableCell>{tx.platform || "-"}</TableCell>
                     <TableCell>{tx.counterparty || "-"}</TableCell>
+                    <TableCell className="max-w-xs truncate">{tx.transactionId || "-"}</TableCell>
+                    <TableCell className="max-w-xs truncate">{tx.notes || "-"}</TableCell>
                     <TableCell>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>

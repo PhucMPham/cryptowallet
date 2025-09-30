@@ -275,6 +275,20 @@ export const p2pRouter = router({
 			fiatCurrency: z.string().default("VND"),
 		}))
 		.query(async ({ input }) => {
+			// Helper functions for formatted logging
+			const fmt2 = (n: number | null | undefined) =>
+				Number(n ?? 0).toLocaleString('vi-VN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+			const fmtPct = (n: number | null | undefined) =>
+				`${fmt2(n ?? 0)}%`;
+
+			// Debug logging enabled in development or with DEBUG_P2P_CALC=1
+			const DEBUG = process.env.DEBUG_P2P_CALC === '1' || process.env.NODE_ENV !== 'production';
+
+			if (DEBUG) {
+				console.group(`[P2P][Server] getPortfolioSummary - ${input.crypto}/${input.fiatCurrency}`);
+				console.log('Inputs:', input);
+			}
+
 			// Get all P2P transactions for the specified crypto/fiat pair
 			const transactions = await db
 				.select()
@@ -286,6 +300,38 @@ export const p2pRouter = router({
 					)
 				)
 				.orderBy(p2pTransaction.transactionDate);
+
+			// ALSO get USDT transactions from crypto table to include in totals
+			let cryptoUsdtTransactions: any[] = [];
+			if (input.crypto === "USDT") {
+				// Import crypto schema
+				const { cryptoAsset, cryptoTransaction } = await import("../db/schema/crypto");
+
+				// Find USDT asset
+				const usdtAsset = await db
+					.select()
+					.from(cryptoAsset)
+					.where(eq(cryptoAsset.symbol, "USDT"))
+					.limit(1);
+
+				if (usdtAsset.length > 0) {
+					// Get all USDT crypto transactions (excluding P2P ones)
+					cryptoUsdtTransactions = await db
+						.select()
+						.from(cryptoTransaction)
+						.where(
+							and(
+								eq(cryptoTransaction.assetId, usdtAsset[0].id),
+								sql`${cryptoTransaction.exchange} NOT LIKE 'P2P-%'`
+							)
+						)
+						.orderBy(cryptoTransaction.transactionDate);
+
+					if (DEBUG) {
+						console.log(`Found ${cryptoUsdtTransactions.length} non-P2P USDT transactions from crypto table`);
+					}
+				}
+			}
 
 			// Get latest market rate
 			const latestRate = await db
@@ -302,6 +348,17 @@ export const p2pRouter = router({
 
 			const currentMarketRate = latestRate[0]?.rate || 0;
 
+			if (DEBUG) {
+				console.log('Fetched transactions count:', transactions.length);
+				console.log('Latest market rate record:', latestRate[0] ?? null);
+				console.log(`Current market rate (${input.fiatCurrency}/${input.crypto}):`, fmt2(currentMarketRate));
+			
+				// Warn about missing market rate
+				if (!latestRate[0]) {
+					console.warn('⚠️ No market rate found -> currentMarketRate = 0.00; Current value and PnL will be 0.00 or misleading.');
+				}
+			}
+
 			// Calculate portfolio metrics
 			let totalBought = 0;
 			let totalSold = 0;
@@ -313,7 +370,71 @@ export const p2pRouter = router({
 			let buyTransactions: typeof transactions = [];
 			let sellTransactions: typeof transactions = [];
 
+			// First, add crypto USDT transactions to totals
+			if (cryptoUsdtTransactions.length > 0) {
+				if (DEBUG) {
+					console.group('[Including non-P2P USDT transactions from crypto table]');
+					console.log(`Processing ${cryptoUsdtTransactions.length} crypto USDT transactions`);
+				}
+
+				// Use a reasonable VND/USD rate if currentMarketRate is 0 (for USDT it's VND/USDT rate)
+				const vndUsdRate = 25000; // Default VND/USD rate
+				const conversionRate = currentMarketRate > 0 ? currentMarketRate : vndUsdRate;
+
+				for (const cryptoTx of cryptoUsdtTransactions) {
+					const quantity = cryptoTx.quantity || 0;
+					const totalAmountUSD = cryptoTx.totalAmount || 0; // This is in USD
+					const feeUSD = cryptoTx.fee || 0; // This is in USD
+
+					// Convert USD amounts to VND for consistency with P2P transactions
+					const totalAmountVND = totalAmountUSD * vndUsdRate;
+					const feeVND = feeUSD * vndUsdRate;
+
+					if (DEBUG) {
+						console.log(`[Crypto Tx ${cryptoTx.id}] ${cryptoTx.type.toUpperCase()} - Date: ${new Date(cryptoTx.transactionDate).toLocaleDateString()}`);
+						console.log(`  Quantity: ${fmt2(quantity)} USDT`);
+						console.log(`  Price: $${fmt2(cryptoTx.pricePerUnit)} per USDT`);
+						console.log(`  Total: $${fmt2(totalAmountUSD)} (${fmt2(totalAmountVND)} VND)`);
+					}
+
+					if (cryptoTx.type === "buy") {
+						totalBought += quantity;
+						totalFiatSpent += totalAmountVND + feeVND;
+						if (DEBUG) {
+							console.log(`  ✅ Added to totalBought: ${fmt2(quantity)} USDT`);
+						}
+					} else if (cryptoTx.type === "sell") {
+						totalSold += quantity;
+						totalFiatReceived += totalAmountVND - feeVND;
+						if (DEBUG) {
+							console.log(`  🔴 Added to totalSold: ${fmt2(quantity)} USDT`);
+						}
+					}
+
+					totalFees += feeVND;
+				}
+
+				if (DEBUG) {
+					console.log('');
+					console.log(`Summary after including crypto transactions:`);
+					console.log(`  totalBought: ${fmt2(totalBought)} USDT`);
+					console.log(`  totalSold: ${fmt2(totalSold)} USDT`);
+					console.log(`  Net holdings from crypto: ${fmt2(totalBought - totalSold)} USDT`);
+					console.groupEnd();
+				}
+			}
+
+			// Then process P2P transactions
 			for (const tx of transactions) {
+				if (DEBUG) {
+					console.group(`[Tx ${tx.id}] ${tx.type.toUpperCase()} - ${tx.crypto}/${tx.fiatCurrency} @ ${fmt2(tx.exchangeRate)} (${new Date(tx.transactionDate).toISOString()})`);
+					console.log('Amounts:', {
+						cryptoAmount: `${fmt2(tx.cryptoAmount)} ${tx.crypto}`,
+						fiatAmount: `${fmt2(tx.fiatAmount)} ${tx.fiatCurrency}`,
+						feeAmount: `${fmt2(tx.feeAmount || 0)} ${tx.fiatCurrency}`,
+					});
+				}
+
 				// Add fees to total
 				if (tx.feeAmount) {
 					totalFees += tx.feeAmount;
@@ -323,22 +444,104 @@ export const p2pRouter = router({
 				if (tx.marketRate && tx.spreadPercent) {
 					const spreadCost = Math.abs(tx.cryptoAmount * (tx.exchangeRate - tx.marketRate));
 					totalSpread += spreadCost;
+					
+					if (DEBUG) {
+						console.log('Market/Spread:', {
+							marketRate: `${fmt2(tx.marketRate)} ${tx.fiatCurrency}/${tx.crypto}`,
+							spreadPercent: tx.spreadPercent != null ? fmtPct(tx.spreadPercent) : 'n/a',
+							spreadCostAbs: fmt2(spreadCost),
+						});
+					}
+				} else if (DEBUG) {
+					console.warn('⚠️ No marketRate captured for this transaction -> spread not computed');
 				}
 
 				if (tx.type === "buy") {
+					if (DEBUG) {
+						console.log(`[BUY] Add to totals: totalBought += ${fmt2(tx.cryptoAmount)}, totalFiatSpent += ${fmt2(tx.fiatAmount)} + fee ${fmt2(tx.feeAmount || 0)}`);
+					}
 					totalBought += tx.cryptoAmount;
 					totalFiatSpent += tx.fiatAmount + (tx.feeAmount || 0); // Include fees in total spent
 					buyTransactions.push(tx);
 				} else {
+					if (DEBUG) {
+						console.log(`[SELL] Add to totals: totalSold += ${fmt2(tx.cryptoAmount)}, totalFiatReceived += ${fmt2(tx.fiatAmount)} - fee ${fmt2(tx.feeAmount || 0)}`);
+					}
 					totalSold += tx.cryptoAmount;
 					totalFiatReceived += tx.fiatAmount - (tx.feeAmount || 0); // Deduct fees from received
 					sellTransactions.push(tx);
 				}
+
+				if (DEBUG) {
+					console.groupEnd();
+				}
 			}
 
-			// Calculate weighted average exchange rate for buys
-			if (totalBought > 0) {
-				weightedAverageRate = totalFiatSpent / totalBought;
+			if (DEBUG) {
+				console.group('[Totals]');
+				console.log(`totalBought (Σ buys cryptoAmount): ${fmt2(totalBought)} ${input.crypto}`);
+				console.log(`totalSold (Σ sells cryptoAmount): ${fmt2(totalSold)} ${input.crypto}`);
+				console.log(`totalFiatSpent (buys + fees): ${fmt2(totalFiatSpent)} ${input.fiatCurrency}`);
+				console.log(`totalFiatReceived (sells - fees): ${fmt2(totalFiatReceived)} ${input.fiatCurrency}`);
+				console.log(`totalFees (Σ fees): ${fmt2(totalFees)} ${input.fiatCurrency}`);
+				console.log(`totalSpread (Σ abs(cryptoAmount * (exchangeRate - marketRate))): ${fmt2(totalSpread)} ${input.fiatCurrency}`);
+				console.groupEnd();
+			}
+
+			// Calculate P2P-only totals for accurate metrics
+			let p2pTotalBought = 0;
+			let p2pTotalSold = 0;
+			let p2pWeightedSum = 0;
+			let p2pFiatSpent = 0;
+			let p2pFiatReceived = 0;
+
+			// Calculate P2P totals separately from crypto transactions
+			for (const tx of buyTransactions) {
+				p2pTotalBought += tx.cryptoAmount;
+				p2pWeightedSum += tx.exchangeRate * tx.cryptoAmount;
+				p2pFiatSpent += tx.fiatAmount + (tx.feeAmount || 0);
+			}
+
+			for (const tx of sellTransactions) {
+				p2pTotalSold += tx.cryptoAmount;
+				p2pFiatReceived += tx.fiatAmount - (tx.feeAmount || 0);
+			}
+
+			// Calculate net P2P investment (buys - sells in USDT)
+			const p2pNetInvestment = p2pTotalBought - p2pTotalSold;
+			// Calculate net P2P fiat investment (VND spent - VND received)
+			const p2pNetFiatInvestment = p2pFiatSpent - p2pFiatReceived;
+
+			if (p2pTotalBought > 0) {
+				weightedAverageRate = p2pWeightedSum / p2pTotalBought;
+
+				if (DEBUG) {
+					console.group('[Weighted Average Calculation - P2P Only]');
+					console.log(`Formula: weightedAverageRate = Σ(exchangeRate × cryptoAmount) / Σ(cryptoAmount)`);
+					console.log(`Using ONLY P2P transactions (not crypto portfolio transactions):`);
+					for (const tx of buyTransactions) {
+						console.log(`  - Date: ${new Date(tx.transactionDate).toLocaleDateString()}, Rate: ${fmt2(tx.exchangeRate)} × Amount: ${fmt2(tx.cryptoAmount)} = ${fmt2(tx.exchangeRate * tx.cryptoAmount)}`);
+					}
+					console.log(`P2P Weighted sum: ${fmt2(p2pWeightedSum)}`);
+					console.log(`P2P Total bought: ${fmt2(p2pTotalBought)}`);
+					console.log(`P2P weightedAverageRate = ${fmt2(p2pWeightedSum)} / ${fmt2(p2pTotalBought)} = ${fmt2(weightedAverageRate)} ${input.fiatCurrency}/${input.crypto}`);
+					console.groupEnd();
+				}
+			} else if (totalBought > 0) {
+				// If no P2P buy transactions but there are crypto transactions,
+				// we can't calculate a meaningful VND/USDT rate since crypto transactions are in USD
+				if (DEBUG) {
+					console.warn('⚠️ No P2P buy transactions found. Cannot calculate VND/USDT weighted average from USD-based crypto transactions.');
+				}
+				weightedAverageRate = 0;
+			} else if (DEBUG) {
+				console.warn('⚠️ weightedAverageRate undefined: no buy transactions -> defaulting to 0.00');
+			}
+
+			// Validate weighted average rate
+			if (Number.isNaN(weightedAverageRate)) {
+				if (DEBUG) console.error('❌ weightedAverageRate is NaN -> division by zero; set to 0.00');
+				weightedAverageRate = 0;
 			}
 
 			const currentHoldings = totalBought - totalSold;
@@ -347,14 +550,89 @@ export const p2pRouter = router({
 			const unrealizedPnL = currentValue - costBasis;
 			const unrealizedPnLPercent = costBasis > 0 ? (unrealizedPnL / costBasis) * 100 : 0;
 
+			if (DEBUG) {
+				console.group('[Holdings & Valuation]');
+				console.log(`currentHoldings = totalBought - totalSold = ${fmt2(totalBought)} - ${fmt2(totalSold)} = ${fmt2(currentHoldings)} ${input.crypto}`);
+				console.log(`currentValue (${input.fiatCurrency}) = currentHoldings * currentMarketRate = ${fmt2(currentHoldings)} * ${fmt2(currentMarketRate)} = ${fmt2(currentValue)} ${input.fiatCurrency}`);
+				console.log(`costBasis (${input.fiatCurrency}) = currentHoldings * weightedAverageRate = ${fmt2(currentHoldings)} * ${fmt2(weightedAverageRate)} = ${fmt2(costBasis)} ${input.fiatCurrency}`);
+				console.log(`unrealizedPnL (${input.fiatCurrency}) = currentValue - costBasis = ${fmt2(currentValue)} - ${fmt2(costBasis)} = ${fmt2(unrealizedPnL)} ${input.fiatCurrency}`);
+				console.log(`unrealizedPnLPercent = unrealizedPnL / costBasis = ${fmt2(unrealizedPnL)} / ${fmt2(costBasis)} = ${fmt2(unrealizedPnLPercent)}%`);
+				console.groupEnd();
+
+				// Edge case warnings
+				if (totalBought === 0 && totalSold > 0) {
+					console.warn(`⚠️ Sold without any recorded buys -> weightedAverageRate = 0.00; realized PnL may be inflated.`);
+				}
+				if (currentHoldings < 0) {
+					console.warn(`⚠️ Negative holdings (${fmt2(currentHoldings)}) -> More sold than bought. Check data consistency.`);
+				}
+			}
+
 			// Calculate realized P&L from sell transactions
 			let realizedPnL = 0;
 			if (sellTransactions.length > 0 && weightedAverageRate > 0) {
+				if (DEBUG) {
+					console.group('[Realized PnL]');
+				}
 				for (const sellTx of sellTransactions) {
 					const costOfSold = sellTx.cryptoAmount * weightedAverageRate;
 					const proceeds = sellTx.fiatAmount;
 					realizedPnL += proceeds - costOfSold;
+					
+					if (DEBUG) {
+						const proceedsNet = sellTx.fiatAmount - (sellTx.feeAmount || 0);
+						console.log(`Sell Tx ${sellTx.id}: costOfSold = ${fmt2(sellTx.cryptoAmount)} * ${fmt2(weightedAverageRate)} = ${fmt2(costOfSold)}, proceedsGross = ${fmt2(proceeds)}, proceedsNet = ${fmt2(proceedsNet)}`);
+					}
 				}
+				if (DEBUG) {
+					console.warn('⚠️ Note: realizedPnL currently uses gross proceeds (no fee deduction). Consider using net for more accuracy.');
+					console.groupEnd();
+				}
+			}
+			
+			if (DEBUG) {
+				console.log(`realizedPnL (Σ(proceedsGross - costOfSold)): ${fmt2(realizedPnL)} ${input.fiatCurrency}`);
+			}
+
+			if (DEBUG) {
+				console.group('[Final Summary - Four Key Numbers]');
+				console.log('🔢 Four key numbers:');
+				console.log('');
+				console.log(`1️⃣  Tổng Đầu Tư (Total Investment)`);
+				console.log(`    ✅ P2P Net Investment = ${fmt2(p2pNetFiatInvestment)} VND`);
+				console.log(`    (Money Spent: ${fmt2(p2pFiatSpent)} - Money Received: ${fmt2(p2pFiatReceived)} = ${fmt2(p2pNetFiatInvestment)} VND)`);
+				console.log('');
+				console.log(`📊 Số dư USDT còn lại (Remaining USDT Balance)`);
+				console.log(`    Formula: currentHoldings = P2P Bought - USDT Used for Crypto Purchases`);
+				console.log(`    Calculation: ${fmt2(p2pTotalBought)} (P2P) - ${fmt2(totalSold)} (Used) = ${fmt2(currentHoldings)} USDT`);
+				console.log(`    ✅ Số dư hiện tại = ${fmt2(currentHoldings)} USDT`);
+				if (totalSold > 0) {
+					const percentSold = (totalSold / totalBought) * 100;
+					console.log(`    ℹ️ Đã dùng mua crypto khác: ${fmt2(totalSold)} USDT (${fmt2(percentSold)}% của tổng P2P)`);
+				} else {
+					console.log(`    ℹ️ Chưa có giao dịch bán nào`);
+				}
+				console.log('');
+				console.log(`2️⃣  Giá Mua Trung Bình (Avg Buy Price): ${fmt2(weightedAverageRate)} VND/USDT`);
+				console.log(`3️⃣  Giá Trị Hiện Tại VNĐ (Current Value): ${fmt2(currentValue)} VND`);
+				console.log(`4️⃣  Lãi/Lỗ (Nếu Bán Ngay) (P/L if sold now): ${unrealizedPnL >= 0 ? '+' : ''}${fmt2(unrealizedPnL)} VND`);
+				console.log('──────────────────────────────');
+				console.log('All metrics:', {
+					totalBought: fmt2(totalBought),
+					totalSold: fmt2(totalSold),
+					currentHoldings: fmt2(currentHoldings),
+					weightedAverageRate: fmt2(weightedAverageRate),
+					currentMarketRate: fmt2(currentMarketRate),
+					currentValue: fmt2(currentValue),
+					costBasis: fmt2(costBasis),
+					unrealizedPnL: fmt2(unrealizedPnL),
+					unrealizedPnLPercent: fmt2(unrealizedPnLPercent),
+					realizedPnL: fmt2(realizedPnL),
+					totalPnL: fmt2(unrealizedPnL + realizedPnL),
+					netInvested: fmt2(totalFiatSpent - totalFiatReceived),
+				});
+				console.groupEnd();
+				console.groupEnd(); // End main [P2P][Server] group
 			}
 
 			return {
@@ -377,6 +655,13 @@ export const p2pRouter = router({
 					realizedPnL,
 					totalPnL: unrealizedPnL + realizedPnL,
 					netInvested: totalFiatSpent - totalFiatReceived,
+					// Add P2P-only metrics
+					p2pNetInvestment,
+					p2pTotalBought,
+					p2pTotalSold,
+					p2pNetFiatInvestment,
+					p2pFiatSpent,
+					p2pFiatReceived,
 				},
 				transactions,
 				latestMarketRate: latestRate[0] || null,

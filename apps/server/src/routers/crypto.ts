@@ -580,6 +580,7 @@ export const cryptoRouter = router({
 				type: z.enum(["buy", "sell"]).optional(),
 				quantity: z.number().positive().optional(),
 				pricePerUnit: z.number().positive().optional(),
+				totalAmount: z.number().min(0).optional(),
 				fee: z.number().min(0).optional(),
 				feeCurrency: z.enum(["USD", "CRYPTO"]).optional(),
 				exchange: z.string().optional(),

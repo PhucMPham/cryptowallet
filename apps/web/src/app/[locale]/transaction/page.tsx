@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useTranslations } from 'next-intl';
 import { api } from "@/utils/api";
 import { formatCurrency, formatVnd, formatPercent, formatCrypto } from "@/utils/formatters";
@@ -10,10 +10,10 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { 
-	Search, 
-	Filter, 
-	Download, 
+import {
+	Search,
+	Filter,
+	Download,
 	Calendar,
 	TrendingUp,
 	TrendingDown,
@@ -79,6 +79,207 @@ export default function TransactionPage() {
 
 	const vndRate = dashboardData?.vndRate?.usdToVnd || 25000;
 	const isLoading = dashboardLoading || transactionsLoading;
+
+	// Debug logging for USDT transactions
+	useEffect(() => {
+		const DEBUG = process.env.NEXT_PUBLIC_DEBUG_TRANSACTIONS === '1' || process.env.NODE_ENV !== 'production';
+		if (!DEBUG || !allTransactions) return;
+
+		const fmt2 = (n: number | null | undefined) =>
+			Number(n ?? 0).toLocaleString('vi-VN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+		const fmtVnd = (n: number) =>
+			new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(n);
+		const fmtUsd = (n: number) =>
+			new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n);
+
+		// Filter USDT transactions
+		const usdtTransactions = allTransactions.filter(tx =>
+			tx?.asset?.symbol === 'USDT'
+		);
+
+		if (usdtTransactions.length === 0) {
+			console.log('📊 [Transaction Page] No USDT transactions found');
+			return;
+		}
+
+		console.group(`📊 [Transaction Page] USDT Transaction Analysis`);
+		console.log(`Found ${usdtTransactions.length} USDT transactions`);
+		console.log('──────────────────────────────');
+
+		// Separate buy and sell transactions
+		const buyTransactions = usdtTransactions.filter(tx => tx?.type === 'buy');
+		const sellTransactions = usdtTransactions.filter(tx => tx?.type === 'sell');
+
+		console.log(`🟢 BUY Transactions: ${buyTransactions.length}`);
+		console.log(`🔴 SELL Transactions: ${sellTransactions.length}`);
+		console.log('');
+
+		// Analyze SELL transactions in detail
+		if (sellTransactions.length > 0) {
+			console.group('🔴 USDT SELL Transaction Details');
+
+			let totalSoldQuantity = 0;
+			let totalSoldValueUSD = 0;
+			let totalSoldValueVND = 0;
+			let totalFees = 0;
+
+			sellTransactions.forEach((tx, index) => {
+				if (!tx) return;
+
+				const sellQuantity = tx.quantity || 0;
+				const pricePerUnit = tx.pricePerUnit || 0;
+				const totalAmount = tx.totalAmount || 0;
+				const fee = tx.fee || 0;
+				const netReceived = totalAmount - fee;
+
+				console.group(`[SELL #${index + 1}] ${format(new Date(tx.transactionDate), 'dd/MM/yyyy HH:mm')}`);
+				console.log('📝 Transaction ID:', tx.id);
+				console.log('📅 Date:', format(new Date(tx.transactionDate), 'PPpp'));
+				console.log('');
+
+				console.log('💰 SELL Calculation:');
+				console.log(`   Quantity Sold: ${fmt2(sellQuantity)} USDT`);
+				console.log(`   Price Per Unit: ${fmtUsd(pricePerUnit)} (${fmtVnd(pricePerUnit * vndRate)})`);
+				console.log('');
+
+				console.log('📊 Formula: Total = Quantity × Price Per Unit');
+				console.log(`   Calculation: ${fmt2(sellQuantity)} × ${fmtUsd(pricePerUnit)} = ${fmtUsd(totalAmount)}`);
+				console.log(`   ✅ Gross Amount: ${fmtUsd(totalAmount)} (${fmtVnd(totalAmount * vndRate)})`);
+				console.log('');
+
+				if (fee > 0) {
+					console.log('💸 Fees:');
+					console.log(`   Transaction Fee: ${fmtUsd(fee)} (${fmtVnd(fee * vndRate)})`);
+					console.log(`   Fee Percentage: ${fmt2((fee / totalAmount) * 100)}%`);
+					console.log('');
+
+					console.log('📊 Net Received Formula: Gross Amount - Fees');
+					console.log(`   Calculation: ${fmtUsd(totalAmount)} - ${fmtUsd(fee)} = ${fmtUsd(netReceived)}`);
+					console.log(`   ✅ Net Received: ${fmtUsd(netReceived)} (${fmtVnd(netReceived * vndRate)})`);
+				} else {
+					console.log('   ✅ No fees - Net = Gross');
+					console.log(`   ✅ Net Received: ${fmtUsd(netReceived)} (${fmtVnd(netReceived * vndRate)})`);
+				}
+
+				// Source and exchange info
+				if (tx.source === 'p2p' && tx.p2pData) {
+					console.log('');
+					console.log('🏦 P2P Transaction Details:');
+					console.log(`   Platform: ${tx.p2pData.platform || 'N/A'}`);
+					if (tx.p2pData.exchangeRate) {
+						console.log(`   Exchange Rate: ${fmt2(tx.p2pData.exchangeRate)} VND/USDT`);
+					}
+					if (tx.p2pData.marketRate) {
+						console.log(`   Market Rate: ${fmt2(tx.p2pData.marketRate)} VND/USDT`);
+						if (tx.p2pData.spreadPercent) {
+							console.log(`   Spread: ${fmt2(tx.p2pData.spreadPercent)}%`);
+						}
+					}
+					if (tx.p2pData.counterparty) {
+						console.log(`   Counterparty: ${tx.p2pData.counterparty}`);
+					}
+				} else if (tx.exchange) {
+					console.log('');
+					console.log(`🏦 Exchange: ${tx.exchange}`);
+				}
+
+				if (tx.notes) {
+					console.log('');
+					console.log(`📝 Notes: ${tx.notes}`);
+				}
+
+				// Update totals
+				totalSoldQuantity += sellQuantity;
+				totalSoldValueUSD += totalAmount;
+				totalSoldValueVND += totalAmount * vndRate;
+				totalFees += fee;
+
+				console.groupEnd();
+			});
+
+			console.log('');
+			console.log('──────────────────────────────');
+			console.log('📊 SELL TRANSACTIONS SUMMARY:');
+			console.log(`   Total USDT Sold: ${fmt2(totalSoldQuantity)} USDT`);
+			console.log(`   Total Value (Gross): ${fmtUsd(totalSoldValueUSD)} (${fmtVnd(totalSoldValueVND)})`);
+			console.log(`   Total Fees: ${fmtUsd(totalFees)} (${fmtVnd(totalFees * vndRate)})`);
+			console.log(`   Net Received: ${fmtUsd(totalSoldValueUSD - totalFees)} (${fmtVnd((totalSoldValueUSD - totalFees) * vndRate)})`);
+			console.log(`   Average Sell Price: ${fmtUsd(totalSoldValueUSD / totalSoldQuantity)} per USDT`);
+
+			console.groupEnd();
+		} else {
+			console.log('ℹ️ No USDT SELL transactions found');
+		}
+
+		// Analyze BUY transactions summary
+		if (buyTransactions.length > 0) {
+			console.log('');
+			console.group('🟢 USDT BUY Transaction Summary');
+
+			let totalBoughtQuantity = 0;
+			let totalBoughtValueUSD = 0;
+			let totalBuyFees = 0;
+
+			buyTransactions.forEach(tx => {
+				if (!tx) return;
+				totalBoughtQuantity += tx.quantity || 0;
+				totalBoughtValueUSD += tx.totalAmount || 0;
+				totalBuyFees += tx.fee || 0;
+			});
+
+			console.log(`   Total USDT Bought: ${fmt2(totalBoughtQuantity)} USDT`);
+			console.log(`   Total Spent (Gross): ${fmtUsd(totalBoughtValueUSD)} (${fmtVnd(totalBoughtValueUSD * vndRate)})`);
+			console.log(`   Total Fees: ${fmtUsd(totalBuyFees)} (${fmtVnd(totalBuyFees * vndRate)})`);
+			console.log(`   Total Cost: ${fmtUsd(totalBoughtValueUSD + totalBuyFees)} (${fmtVnd((totalBoughtValueUSD + totalBuyFees) * vndRate)})`);
+			console.log(`   Average Buy Price: ${fmtUsd(totalBoughtValueUSD / totalBoughtQuantity)} per USDT`);
+
+			console.groupEnd();
+		}
+
+		// Overall USDT position
+		console.log('');
+		console.log('──────────────────────────────');
+		console.log('📊 OVERALL USDT POSITION:');
+
+		// Calculate totalBought from all buy transactions
+		const totalBought = buyTransactions.reduce((sum, tx) => sum + (tx?.quantity || 0), 0);
+		console.log(`1️⃣ Total Bought = Sum of all BUY quantities`);
+		if (buyTransactions.length > 0) {
+			const buyQuantities = buyTransactions.map(tx => tx?.quantity || 0);
+			console.log(`   Formula: ${buyQuantities.map(q => fmt2(q)).join(' + ')}`);
+		}
+		console.log(`   ✅ Total Bought = ${fmt2(totalBought)} USDT`);
+		console.log('');
+
+		// Calculate totalSold from all sell transactions
+		const totalSold = sellTransactions.reduce((sum, tx) => sum + (tx?.quantity || 0), 0);
+		console.log(`2️⃣ Total Sold = Sum of all SELL quantities`);
+		if (sellTransactions.length > 0) {
+			console.log(`   Formula: Sum of ${sellTransactions.length} SELL transactions`);
+			sellTransactions.forEach((tx, i) => {
+				console.log(`     SELL #${i + 1}: ${fmt2(tx?.quantity || 0)} USDT`);
+			});
+			const sellQuantities = sellTransactions.map(tx => tx?.quantity || 0);
+			console.log(`   Calculation: ${sellQuantities.map(q => fmt2(q)).join(' + ')} = ${fmt2(totalSold)} USDT`);
+		} else {
+			console.log(`   No SELL transactions found`);
+		}
+		console.log(`   ✅ Total Sold = ${fmt2(totalSold)} USDT`);
+		console.log('');
+
+		// Calculate current holdings
+		const currentHoldings = totalBought - totalSold;
+		console.log(`3️⃣ Số dư hiện tại (Current Holdings)`);
+		console.log(`   Formula: currentHoldings = totalBought - totalSold`);
+		console.log(`   Calculation: ${fmt2(totalBought)} - ${fmt2(totalSold)} = ${fmt2(currentHoldings)} USDT`);
+		console.log(`   ✅ Current USDT Holdings = ${fmt2(currentHoldings)} USDT`);
+
+		if (totalSold > totalBought) {
+			console.error('⚠️ WARNING: Sold more USDT than bought! Check data consistency.');
+		}
+
+		console.groupEnd();
+	}, [allTransactions, vndRate]);
 
 	// Get unique assets for filter dropdown
 	const uniqueAssets = useMemo(() => {

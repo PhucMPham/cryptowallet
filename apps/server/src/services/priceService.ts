@@ -9,6 +9,30 @@ interface PriceResponse {
 	[symbol: string]: CryptoPrice;
 }
 
+export interface CryptoAssetInfo {
+	symbol: string;
+	price: number;
+	priceChange24h?: number;
+	logoUrl?: string;
+}
+
+interface CoinGeckoAssetInfo {
+	id: string;
+	symbol: string;
+	name: string;
+	image: {
+		thumb: string;
+		small: string;
+		large: string;
+	};
+	market_data: {
+		current_price: {
+			usd: number;
+		};
+		price_change_percentage_24h: number;
+	};
+}
+
 type PriceProvider = 'coingecko' | 'coinmarketcap' | 'auto';
 
 class PriceService {
@@ -214,6 +238,55 @@ class PriceService {
 			provider: this.provider,
 			coinMarketCapConfigured: coinMarketCapService.isConfigured(),
 		};
+	}
+
+	// Get detailed asset info including price, 24h change, and logo
+	async getAssetInfo(symbol: string): Promise<CryptoAssetInfo | null> {
+		const coinId = this.symbolToId[symbol.toUpperCase()];
+		if (!coinId) {
+			console.warn(`No CoinGecko ID mapping for symbol: ${symbol}`);
+			return null;
+		}
+
+		try {
+			const response = await fetch(
+				`${this.baseUrl}/coins/${coinId}?localization=false&tickers=false&market_data=true&community_data=false&developer_data=false&sparkline=false`
+			);
+
+			if (!response.ok) {
+				throw new Error(`Failed to fetch asset info: ${response.statusText}`);
+			}
+
+			const data: CoinGeckoAssetInfo = await response.json();
+
+			return {
+				symbol: symbol.toUpperCase(),
+				price: data.market_data.current_price.usd,
+				priceChange24h: data.market_data.price_change_percentage_24h,
+				logoUrl: data.image.large,
+			};
+		} catch (error) {
+			console.error(`Error fetching asset info for ${symbol}:`, error);
+			return null;
+		}
+	}
+
+	// Get detailed info for multiple assets
+	async getAssetsInfo(symbols: string[]): Promise<Record<string, CryptoAssetInfo | null>> {
+		const results: Record<string, CryptoAssetInfo | null> = {};
+
+		// Fetch in parallel
+		const promises = symbols.map(async (symbol) => {
+			const info = await this.getAssetInfo(symbol);
+			return { symbol, info };
+		});
+
+		const responses = await Promise.all(promises);
+		responses.forEach(({ symbol, info }) => {
+			results[symbol] = info;
+		});
+
+		return results;
 	}
 }
 

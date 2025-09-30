@@ -7,6 +7,7 @@ import { db } from "../db";
 import { priceService } from "../services/priceService";
 import { coinMarketCapService } from "../services/coinmarketcapService";
 import { CurrencyService } from "../services/currencyService";
+import { portfolioHistoryService, type TimeRange } from "../services/portfolioHistoryService";
 
 // Helper function to get USDT average buy price from P2P transactions
 async function getUsdtP2PAvgPrice(): Promise<number> {
@@ -1477,6 +1478,89 @@ export const cryptoRouter = router({
 
 			return transactions;
 		}),
+
+	// Get portfolio history for time-series charts
+	getPortfolioHistory: publicProcedure
+		.input(
+			z.object({
+				range: z.enum(["1D", "1W", "1M", "3M", "1Y", "ALL"]).default("1W"),
+			})
+		)
+		.query(async ({ input }) => {
+			const history = await portfolioHistoryService.getHistory(input.range as TimeRange);
+			return history;
+		}),
+
+	// Get asset allocation for pie/donut charts
+	getAssetAllocation: publicProcedure.query(async () => {
+		// Get all assets with their current holdings
+		const assets = await db
+			.select({
+				assetId: cryptoAsset.id,
+				symbol: cryptoAsset.symbol,
+				name: cryptoAsset.name,
+				logoUrl: cryptoAsset.logoUrl,
+				totalQuantity: sql<number>`
+					COALESCE(SUM(CASE
+						WHEN ${cryptoTransaction.type} = 'buy' THEN ${cryptoTransaction.quantity}
+						WHEN ${cryptoTransaction.type} = 'sell' THEN -${cryptoTransaction.quantity}
+					END), 0)
+				`,
+				totalInvested: sql<number>`
+					COALESCE(SUM(CASE
+						WHEN ${cryptoTransaction.type} = 'buy' THEN ${cryptoTransaction.totalAmount} + ${cryptoTransaction.fee}
+						WHEN ${cryptoTransaction.type} = 'sell' THEN 0
+					END), 0)
+				`,
+			})
+			.from(cryptoAsset)
+			.leftJoin(cryptoTransaction, eq(cryptoAsset.id, cryptoTransaction.assetId))
+			.groupBy(cryptoAsset.id, cryptoAsset.symbol, cryptoAsset.name, cryptoAsset.logoUrl)
+			.having(sql`SUM(CASE
+				WHEN ${cryptoTransaction.type} = 'buy' THEN ${cryptoTransaction.quantity}
+				WHEN ${cryptoTransaction.type} = 'sell' THEN -${cryptoTransaction.quantity}
+			END) > 0`);
+
+		// Get current prices for all assets
+		const symbols = assets.map((a) => a.symbol);
+		const prices = await priceService.getPrices(symbols);
+
+		// Get VND conversion rate
+		const vndConversion = await CurrencyService.getUsdToVndRate();
+
+		// Calculate values and percentages
+		const assetsWithValues = assets.map((asset) => {
+			const currentPrice = prices[asset.symbol] || 0;
+			const currentValue = asset.totalQuantity * currentPrice;
+
+			return {
+				symbol: asset.symbol,
+				name: asset.name,
+				logoUrl: asset.logoUrl,
+				quantity: asset.totalQuantity,
+				currentPrice,
+				currentValue,
+				currentValueVnd: currentValue * vndConversion.usdToVnd,
+				totalInvested: asset.totalInvested,
+				totalInvestedVnd: asset.totalInvested * vndConversion.usdToVnd,
+			};
+		});
+
+		// Calculate total portfolio value
+		const totalValue = assetsWithValues.reduce((sum, a) => sum + a.currentValue, 0);
+
+		// Add percentages
+		const allocation = assetsWithValues.map((asset) => ({
+			...asset,
+			percentage: totalValue > 0 ? (asset.currentValue / totalValue) * 100 : 0,
+		}));
+
+		return {
+			assets: allocation,
+			totalValue,
+			totalValueVnd: totalValue * vndConversion.usdToVnd,
+		};
+	}),
 });
 
 export type CryptoRouter = typeof cryptoRouter;

@@ -1,14 +1,16 @@
 "use client";
 
-import {
-	PieChart,
-	Pie,
-	Cell,
-	ResponsiveContainer,
-	Legend,
-	Tooltip,
-} from "recharts";
+import { useState } from "react";
+import { Pie, PieChart, Cell } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
+import {
+	ChartConfig,
+	ChartContainer,
+	ChartTooltip,
+	ChartTooltipContent,
+	ChartLegend,
+	ChartLegendContent,
+} from "@/components/ui/chart";
 
 interface AssetAllocation {
 	symbol: string;
@@ -28,15 +30,6 @@ interface AssetAllocationChartProps {
 	displayCurrency?: "VND" | "USD";
 }
 
-// Use the existing chart color palette from CSS variables
-const CHART_COLORS = [
-	"hsl(var(--chart-1))", // Orange
-	"hsl(var(--chart-2))", // Blue
-	"hsl(var(--chart-3))", // Purple
-	"hsl(var(--chart-4))", // Green
-	"hsl(var(--chart-5))", // Red
-];
-
 export function AssetAllocationChart({
 	assets,
 	totalValue,
@@ -44,69 +37,37 @@ export function AssetAllocationChart({
 	isLoading = false,
 	displayCurrency = "VND",
 }: AssetAllocationChartProps) {
-	// Prepare data for pie chart
-	const chartData = assets.map((asset) => ({
-		name: asset.symbol,
-		value: asset.percentage,
-		actualValue:
-			displayCurrency === "VND" ? asset.currentValueVnd : asset.currentValue,
-		fullName: asset.name,
+	const [activeIndex, setActiveIndex] = useState<number | null>(null);
+
+	// Vibrant color palette for chart segments (using hex colors for Recharts compatibility)
+	const colorPalette = [
+		"#f97316", // Orange
+		"#3b82f6", // Blue
+		"#8b5cf6", // Purple
+		"#10b981", // Green
+		"#eab308", // Yellow
+		"#ec4899", // Pink
+		"#06b6d4", // Cyan
+	];
+
+	// Create chart config dynamically based on assets
+	const chartConfig = assets.reduce((config, asset, index) => {
+		config[asset.symbol] = {
+			label: asset.name,
+			color: colorPalette[index % colorPalette.length],
+		};
+		return config;
+	}, {} as ChartConfig);
+
+	// Prepare data for pie chart with explicit fill colors
+	const chartData = assets.map((asset, index) => ({
+		asset: asset.symbol,
+		value: asset.currentValue,
+		valueVnd: asset.currentValueVnd,
+		percentage: asset.percentage,
+		name: asset.name,
+		fill: colorPalette[index % colorPalette.length],
 	}));
-
-	// Custom tooltip
-	const CustomTooltip = ({ active, payload }: any) => {
-		if (active && payload && payload.length) {
-			const data = payload[0].payload;
-			const formattedValue =
-				displayCurrency === "VND"
-					? `₫${data.actualValue.toLocaleString("vi-VN", {
-							minimumFractionDigits: 0,
-							maximumFractionDigits: 0,
-					  })}`
-					: `$${data.actualValue.toLocaleString("en-US", {
-							minimumFractionDigits: 2,
-							maximumFractionDigits: 2,
-					  })}`;
-
-			return (
-				<div className="bg-popover border border-border rounded-lg shadow-lg p-3">
-					<p className="text-sm font-semibold text-foreground mb-1">
-						{data.name}
-					</p>
-					<p className="text-xs text-muted-foreground mb-1">{data.fullName}</p>
-					<p className="text-sm font-medium text-foreground">
-						{formattedValue}
-					</p>
-					<p className="text-xs text-muted-foreground">
-						{data.value.toFixed(2)}%
-					</p>
-				</div>
-			);
-		}
-		return null;
-	};
-
-	// Custom legend
-	const CustomLegend = ({ payload }: any) => {
-		return (
-			<div className="flex flex-wrap gap-3 justify-center mt-4">
-				{payload.map((entry: any, index: number) => (
-					<div key={`legend-${index}`} className="flex items-center gap-2">
-						<div
-							className="w-3 h-3 rounded-full"
-							style={{ backgroundColor: entry.color }}
-						/>
-						<span className="text-xs text-foreground font-medium">
-							{entry.value}
-						</span>
-						<span className="text-xs text-muted-foreground">
-							{entry.payload.value.toFixed(1)}%
-						</span>
-					</div>
-				))}
-			</div>
-		);
-	};
 
 	if (isLoading) {
 		return (
@@ -115,7 +76,7 @@ export function AssetAllocationChart({
 					<CardTitle>Asset Allocation</CardTitle>
 				</CardHeader>
 				<CardContent>
-					<div className="h-[350px] flex items-center justify-center">
+					<div className="h-[400px] flex items-center justify-center">
 						<p className="text-muted-foreground">Loading chart...</p>
 					</div>
 				</CardContent>
@@ -130,7 +91,7 @@ export function AssetAllocationChart({
 					<CardTitle>Asset Allocation</CardTitle>
 				</CardHeader>
 				<CardContent>
-					<div className="h-[350px] flex items-center justify-center">
+					<div className="h-[400px] flex items-center justify-center">
 						<div className="text-center">
 							<p className="text-muted-foreground mb-2">
 								No assets in portfolio yet
@@ -145,46 +106,111 @@ export function AssetAllocationChart({
 		);
 	}
 
+	// Get active slice data
+	const activeSlice = activeIndex !== null ? chartData[activeIndex] : null;
+	const displayValue = activeSlice
+		? displayCurrency === "VND"
+			? activeSlice.valueVnd
+			: activeSlice.value
+		: displayCurrency === "VND"
+		? totalValueVnd
+		: totalValue;
+
+	const formattedDisplayValue =
+		displayCurrency === "VND"
+			? `₫${Number(displayValue).toLocaleString("vi-VN", {
+					minimumFractionDigits: 0,
+					maximumFractionDigits: 0,
+			  })}`
+			: `$${Number(displayValue).toLocaleString("en-US", {
+					minimumFractionDigits: 2,
+					maximumFractionDigits: 2,
+			  })}`;
+
 	return (
-		<Card>
-			<CardHeader>
-				<CardTitle>Asset Allocation</CardTitle>
-				<p className="text-sm text-muted-foreground mt-1">
-					{displayCurrency === "VND"
-						? `Total: ₫${totalValueVnd.toLocaleString("vi-VN")}`
-						: `Total: $${totalValue.toLocaleString("en-US", {
-								minimumFractionDigits: 2,
-								maximumFractionDigits: 2,
-						  })}`}
-				</p>
-			</CardHeader>
-			<CardContent>
-				<ResponsiveContainer width="100%" height={350}>
-					<PieChart>
-						<Pie
-							data={chartData}
-							cx="50%"
-							cy="45%"
-							innerRadius={60}
-							outerRadius={100}
-							paddingAngle={2}
-							dataKey="value"
-							label={({ name, value }) => `${name} ${value.toFixed(1)}%`}
-							labelLine={true}
+		<Card className="bg-zinc-900 border-zinc-800">
+			<CardContent className="pt-6">
+				<div className="grid grid-cols-[1fr_200px] gap-8 items-center">
+					{/* Donut Chart with Center Content */}
+					<div className="relative flex items-center justify-center">
+						<ChartContainer
+							config={chartConfig}
+							className="aspect-square h-[450px]"
 						>
-							{chartData.map((entry, index) => (
-								<Cell
-									key={`cell-${index}`}
-									fill={CHART_COLORS[index % CHART_COLORS.length]}
-									className="stroke-background hover:opacity-80 transition-opacity"
-									strokeWidth={2}
-								/>
-							))}
-						</Pie>
-						<Tooltip content={<CustomTooltip />} />
-						<Legend content={<CustomLegend />} />
-					</PieChart>
-				</ResponsiveContainer>
+							<PieChart
+								onMouseLeave={() => setActiveIndex(null)}
+							>
+								<Pie
+									data={chartData}
+									dataKey="value"
+									nameKey="asset"
+									innerRadius={110}
+									outerRadius={160}
+									strokeWidth={0}
+									paddingAngle={1}
+									onMouseEnter={(_, index) => setActiveIndex(index)}
+									onClick={(_, index) => setActiveIndex(index)}
+								>
+									{chartData.map((entry, index) => (
+										<Cell
+											key={`cell-${index}`}
+											fill={entry.fill}
+											className="outline-none transition-opacity cursor-pointer"
+											style={{
+												opacity: activeIndex === null || activeIndex === index ? 1 : 0.6,
+											}}
+										/>
+									))}
+								</Pie>
+							</PieChart>
+						</ChartContainer>
+
+						{/* Center Content */}
+						<div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+							<div className="text-center max-w-[180px]">
+								{activeSlice && (
+									<div className="text-sm text-zinc-400 mb-1">
+										{activeSlice.asset}
+									</div>
+								)}
+								<div className="text-xl font-bold text-white">
+									{formattedDisplayValue}
+								</div>
+								{activeSlice && (
+									<div className="text-sm text-zinc-400 mt-1">
+										{activeSlice.percentage.toFixed(1)}%
+									</div>
+								)}
+							</div>
+						</div>
+					</div>
+
+					{/* Legend */}
+					<div className="flex flex-col gap-2.5">
+						{chartData.map((item) => (
+							<div key={item.asset} className="flex items-center justify-between gap-3">
+								<div className="flex items-center gap-2">
+									<div
+										className="w-2.5 h-2.5 rounded-full"
+										style={{ backgroundColor: item.fill }}
+									/>
+									<span className="text-sm font-medium text-white">
+										{item.asset}
+									</span>
+								</div>
+								<div className="flex items-center gap-2">
+									<span className="text-sm text-zinc-400 font-mono tabular-nums">
+										{item.percentage.toFixed(1)}%
+									</span>
+									<div
+										className="h-0.5 w-8"
+										style={{ backgroundColor: item.fill }}
+									/>
+								</div>
+							</div>
+						))}
+					</div>
+				</div>
 			</CardContent>
 		</Card>
 	);

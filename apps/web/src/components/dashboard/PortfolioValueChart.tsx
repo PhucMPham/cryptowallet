@@ -1,18 +1,16 @@
 "use client";
 
 import { useState } from "react";
-import {
-	LineChart,
-	Line,
-	XAxis,
-	YAxis,
-	CartesianGrid,
-	Tooltip,
-	ResponsiveContainer,
-} from "recharts";
+import { Area, AreaChart, CartesianGrid, XAxis } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Button } from "../ui/button";
 import { format } from "date-fns";
+import {
+	ChartConfig,
+	ChartContainer,
+	ChartTooltip,
+	ChartTooltipContent,
+} from "@/components/ui/chart";
 
 type TimeRange = "1D" | "1W" | "1M" | "3M" | "1Y" | "ALL";
 
@@ -27,6 +25,8 @@ interface PortfolioValueChartProps {
 	data: PortfolioSnapshot[];
 	isLoading?: boolean;
 	displayCurrency?: "VND" | "USD";
+	selectedRange?: TimeRange;
+	onRangeChange?: (range: TimeRange) => void;
 }
 
 const TIME_RANGES: { value: TimeRange; label: string }[] = [
@@ -38,12 +38,29 @@ const TIME_RANGES: { value: TimeRange; label: string }[] = [
 	{ value: "ALL", label: "ALL" },
 ];
 
+const chartConfig = {
+	value: {
+		label: "Portfolio Value",
+	},
+} satisfies ChartConfig;
+
 export function PortfolioValueChart({
 	data,
 	isLoading = false,
 	displayCurrency = "VND",
+	selectedRange: externalRange,
+	onRangeChange,
 }: PortfolioValueChartProps) {
-	const [selectedRange, setSelectedRange] = useState<TimeRange>("1W");
+	const [internalRange, setInternalRange] = useState<TimeRange>("1D");
+	const selectedRange = externalRange ?? internalRange;
+
+	const handleRangeChange = (range: TimeRange) => {
+		if (onRangeChange) {
+			onRangeChange(range);
+		} else {
+			setInternalRange(range);
+		}
+	};
 
 	// Format data for chart
 	const chartData = data.map((snapshot) => ({
@@ -54,48 +71,6 @@ export function PortfolioValueChart({
 				: snapshot.totalValueUsd,
 		formattedDate: format(new Date(snapshot.snapshotDate), "MMM dd, HH:mm"),
 	}));
-
-	// Custom tooltip
-	const CustomTooltip = ({ active, payload }: any) => {
-		if (active && payload && payload.length) {
-			const value = payload[0].value;
-			const formattedValue =
-				displayCurrency === "VND"
-					? `₫${value.toLocaleString("vi-VN", {
-							minimumFractionDigits: 0,
-							maximumFractionDigits: 0,
-					  })}`
-					: `$${value.toLocaleString("en-US", {
-							minimumFractionDigits: 2,
-							maximumFractionDigits: 2,
-					  })}`;
-
-			return (
-				<div className="bg-popover border border-border rounded-lg shadow-lg p-3">
-					<p className="text-xs text-muted-foreground mb-1">
-						{payload[0].payload.formattedDate}
-					</p>
-					<p className="text-sm font-semibold text-foreground">
-						{formattedValue}
-					</p>
-				</div>
-			);
-		}
-		return null;
-	};
-
-	// Format Y-axis
-	const formatYAxis = (value: number) => {
-		if (displayCurrency === "VND") {
-			return `₫${(value / 1_000_000).toFixed(0)}M`;
-		}
-		return `$${(value / 1000).toFixed(0)}K`;
-	};
-
-	// Format X-axis
-	const formatXAxis = (timestamp: number) => {
-		return format(new Date(timestamp), "MMM dd");
-	};
 
 	if (isLoading) {
 		return (
@@ -120,91 +95,111 @@ export function PortfolioValueChart({
 				</CardHeader>
 				<CardContent>
 					<div className="h-[300px] flex items-center justify-center">
-						<div className="text-center">
-							<p className="text-muted-foreground mb-2">
-								No historical data available yet
-							</p>
-							<p className="text-xs text-muted-foreground">
-								Portfolio snapshots will appear here over time
-							</p>
-						</div>
+						<p className="text-muted-foreground">
+							No historical data available yet. Create some portfolio snapshots
+							to see the chart.
+						</p>
 					</div>
 				</CardContent>
 			</Card>
 		);
 	}
 
+	// Calculate high and low values
+	const values = chartData.map((d) => d.value);
+	const highValue = Math.max(...values);
+	const lowValue = Math.min(...values);
+	const highPoint = chartData.find((d) => d.value === highValue);
+	const lowPoint = chartData.find((d) => d.value === lowValue);
+
 	return (
-		<Card>
-			<CardHeader>
-				<div className="flex items-center justify-between">
-					<CardTitle>Portfolio Value</CardTitle>
-					<div className="flex gap-1">
-						{TIME_RANGES.map((range) => (
-							<Button
-								key={range.value}
-								variant={selectedRange === range.value ? "default" : "outline"}
-								size="sm"
-								onClick={() => setSelectedRange(range.value)}
-								className="h-8 px-3 text-xs"
-							>
-								{range.label}
-							</Button>
-						))}
-					</div>
-				</div>
-			</CardHeader>
-			<CardContent>
-				<ResponsiveContainer width="100%" height={300}>
-					<LineChart
+		<Card className="bg-zinc-900 border-zinc-800">
+			<CardContent className="pt-6">
+				<ChartContainer config={chartConfig} className="h-[400px] w-full">
+					<AreaChart
+						accessibilityLayer
 						data={chartData}
-						margin={{ top: 5, right: 20, left: 10, bottom: 5 }}
+						margin={{
+							left: 12,
+							right: 12,
+							top: 40,
+							bottom: 12,
+						}}
 					>
 						<defs>
-							<linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
-								<stop
-									offset="5%"
-									stopColor="hsl(var(--primary))"
-									stopOpacity={0.3}
-								/>
-								<stop
-									offset="95%"
-									stopColor="hsl(var(--primary))"
-									stopOpacity={0}
-								/>
+							<linearGradient id="gradientValue" x1="0" y1="0" x2="1" y2="0">
+								<stop offset="0%" stopColor="#f97316" stopOpacity={0.8} />
+								<stop offset="50%" stopColor="#a855f7" stopOpacity={0.6} />
+								<stop offset="100%" stopColor="#6366f1" stopOpacity={0.4} />
+							</linearGradient>
+							<linearGradient id="fillGradient" x1="0" y1="0" x2="0" y2="1">
+								<stop offset="5%" stopColor="#a855f7" stopOpacity={0.3} />
+								<stop offset="95%" stopColor="#a855f7" stopOpacity={0.05} />
 							</linearGradient>
 						</defs>
-						<CartesianGrid
-							strokeDasharray="3 3"
-							stroke="hsl(var(--border))"
-							opacity={0.3}
-						/>
+						<CartesianGrid vertical={false} stroke="#27272a" />
 						<XAxis
 							dataKey="date"
-							tickFormatter={formatXAxis}
-							stroke="hsl(var(--muted-foreground))"
-							fontSize={12}
-							tickLine={false}
-						/>
-						<YAxis
-							tickFormatter={formatYAxis}
-							stroke="hsl(var(--muted-foreground))"
-							fontSize={12}
 							tickLine={false}
 							axisLine={false}
+							tickMargin={8}
+							minTickGap={32}
+							stroke="#71717a"
+							tickFormatter={(value) => {
+								return format(new Date(value), "HH:mm");
+							}}
 						/>
-						<Tooltip content={<CustomTooltip />} />
-						<Line
-							type="monotone"
+						<ChartTooltip
+							cursor={false}
+							content={
+								<ChartTooltipContent
+									hideLabel
+									className="bg-zinc-900 border-zinc-700"
+									formatter={(value) => {
+										const formattedValue =
+											displayCurrency === "VND"
+												? `₫${Number(value).toLocaleString("vi-VN", {
+														minimumFractionDigits: 0,
+														maximumFractionDigits: 0,
+												  })}`
+												: `$${Number(value).toLocaleString("en-US", {
+														minimumFractionDigits: 2,
+														maximumFractionDigits: 2,
+												  })}`;
+										return formattedValue;
+									}}
+								/>
+							}
+						/>
+						<Area
 							dataKey="value"
-							stroke="hsl(var(--primary))"
-							strokeWidth={2}
-							dot={false}
-							activeDot={{ r: 4, fill: "hsl(var(--primary))" }}
-							fill="url(#colorValue)"
+							type="natural"
+							fill="url(#fillGradient)"
+							fillOpacity={1}
+							stroke="url(#gradientValue)"
+							strokeWidth={3}
 						/>
-					</LineChart>
-				</ResponsiveContainer>
+					</AreaChart>
+				</ChartContainer>
+
+				{/* Time Range Buttons */}
+				<div className="flex justify-center gap-2 mt-4">
+					{TIME_RANGES.map((range) => (
+						<Button
+							key={range.value}
+							variant={selectedRange === range.value ? "secondary" : "ghost"}
+							size="sm"
+							onClick={() => handleRangeChange(range.value)}
+							className={`h-8 px-3 text-xs ${
+								selectedRange === range.value
+									? "bg-zinc-800 text-white"
+									: "text-zinc-400 hover:text-white hover:bg-zinc-800"
+							}`}
+						>
+							{range.label}
+						</Button>
+					))}
+				</div>
 			</CardContent>
 		</Card>
 	);

@@ -435,11 +435,17 @@ export const cryptoRouter = router({
 				return existing[0];
 			}
 
+			// Fetch logo and price info from API
+			const assetInfo = await priceService.getAssetInfo(input.symbol);
+
 			const [newAsset] = await db
 				.insert(cryptoAsset)
 				.values({
 					symbol: input.symbol,
 					name: input.name,
+					logoUrl: assetInfo?.logoUrl || null,
+					priceChange24h: assetInfo?.priceChange24h || null,
+					lastPriceUpdate: assetInfo ? new Date() : null,
 					userId: ctx.session?.user?.id,
 				})
 				.returning();
@@ -1491,6 +1497,104 @@ export const cryptoRouter = router({
 			return history;
 		}),
 
+	// Update asset logos and price info
+	updateAssetInfo: publicProcedure
+		.input(
+			z.object({
+				assetId: z.number().optional(),
+				symbol: z.string().optional(),
+			})
+		)
+		.mutation(async ({ input }) => {
+			// Get assets to update
+			let assets;
+			if (input.assetId) {
+				assets = await db
+					.select()
+					.from(cryptoAsset)
+					.where(eq(cryptoAsset.id, input.assetId));
+			} else if (input.symbol) {
+				assets = await db
+					.select()
+					.from(cryptoAsset)
+					.where(eq(cryptoAsset.symbol, input.symbol));
+			} else {
+				// Update all assets
+				assets = await db.select().from(cryptoAsset);
+			}
+
+			const updated = [];
+			for (const asset of assets) {
+				const assetInfo = await priceService.getAssetInfo(asset.symbol);
+				if (assetInfo) {
+					await db
+						.update(cryptoAsset)
+						.set({
+							logoUrl: assetInfo.logoUrl,
+							priceChange24h: assetInfo.priceChange24h,
+							lastPriceUpdate: new Date(),
+						})
+						.where(eq(cryptoAsset.id, asset.id));
+					updated.push(asset.symbol);
+				}
+			}
+
+			return {
+				success: true,
+				updated,
+				count: updated.length,
+			};
+		}),
+
+	// Create portfolio snapshot with current values (crypto only, excluding P2P)
+	createPortfolioSnapshot: publicProcedure.mutation(async () => {
+		// Calculate crypto portfolio value (regular transactions only)
+		const assets = await db
+			.select({
+				totalQuantity: sql<number>`
+					COALESCE(SUM(CASE
+						WHEN ${cryptoTransaction.type} = 'buy' THEN ${cryptoTransaction.quantity}
+						WHEN ${cryptoTransaction.type} = 'sell' THEN -${cryptoTransaction.quantity}
+					END), 0)
+				`,
+				symbol: cryptoAsset.symbol,
+			})
+			.from(cryptoAsset)
+			.leftJoin(cryptoTransaction, eq(cryptoAsset.id, cryptoTransaction.assetId))
+			.groupBy(cryptoAsset.id, cryptoAsset.symbol)
+			.having(sql`SUM(CASE
+				WHEN ${cryptoTransaction.type} = 'buy' THEN ${cryptoTransaction.quantity}
+				WHEN ${cryptoTransaction.type} = 'sell' THEN -${cryptoTransaction.quantity}
+			END) > 0`);
+
+		// Get current prices
+		const symbols = assets.map((a) => a.symbol);
+		const prices = await priceService.getPrices(symbols);
+
+		// Calculate total value
+		let totalValueUsd = 0;
+		for (const asset of assets) {
+			const price = prices[asset.symbol] || 0;
+			totalValueUsd += asset.totalQuantity * price;
+		}
+
+		// Get VND conversion
+		const vndConversion = await CurrencyService.getUsdToVndRate();
+		const totalValueVnd = totalValueUsd * vndConversion.usdToVnd;
+
+		// Create snapshot
+		await portfolioHistoryService.createSnapshot(totalValueUsd, totalValueVnd);
+
+		console.log(`Portfolio snapshot created: USD ${totalValueUsd}, VND ${totalValueVnd}`);
+
+		return {
+			success: true,
+			totalValueUsd,
+			totalValueVnd,
+			snapshotDate: new Date(),
+		};
+	}),
+
 	// Get asset allocation for pie/donut charts
 	getAssetAllocation: publicProcedure.query(async () => {
 		// Get all assets with their current holdings
@@ -1559,6 +1663,21 @@ export const cryptoRouter = router({
 			assets: allocation,
 			totalValue,
 			totalValueVnd: totalValue * vndConversion.usdToVnd,
+		};
+	}),
+
+	// Delete all portfolio history snapshots (for cleaning up old data)
+	clearPortfolioHistory: publicProcedure.mutation(async () => {
+		const { portfolioHistory } = await import("../db/schema/crypto");
+
+		// Delete all snapshots
+		await db.delete(portfolioHistory);
+
+		console.log("[Admin] All portfolio history snapshots cleared");
+
+		return {
+			success: true,
+			message: "All portfolio snapshots have been deleted. Create new snapshots with crypto-only calculation.",
 		};
 	}),
 });

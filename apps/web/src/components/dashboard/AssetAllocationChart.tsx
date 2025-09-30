@@ -66,6 +66,7 @@ export function AssetAllocationChart({
 		valueVnd: asset.currentValueVnd,
 		percentage: asset.percentage,
 		name: asset.name,
+		logoUrl: asset.logoUrl,
 		fill: colorPalette[index % colorPalette.length],
 	}));
 
@@ -168,6 +169,13 @@ export function AssetAllocationChart({
 						{/* Center Content */}
 						<div className="absolute inset-0 flex items-center justify-center pointer-events-none">
 							<div className="text-center max-w-[180px]">
+								{activeSlice && activeSlice.logoUrl && (
+									<img
+										src={activeSlice.logoUrl}
+										alt={activeSlice.asset}
+										className="w-8 h-8 mx-auto mb-2"
+									/>
+								)}
 								{activeSlice && (
 									<div className="text-sm text-zinc-400 mb-1">
 										{activeSlice.asset}
@@ -190,16 +198,25 @@ export function AssetAllocationChart({
 						{chartData.map((item) => (
 							<div key={item.asset} className="flex items-center justify-between gap-3">
 								<div className="flex items-center gap-2">
-									<div
-										className="w-2.5 h-2.5 rounded-full"
-										style={{ backgroundColor: item.fill }}
-									/>
+									{item.logoUrl && (
+										<img
+											src={item.logoUrl}
+											alt={item.asset}
+											className="w-4 h-4"
+										/>
+									)}
+									{!item.logoUrl && (
+										<div
+											className="w-2.5 h-2.5 rounded-full"
+											style={{ backgroundColor: item.fill }}
+										/>
+									)}
 									<span className="text-sm font-medium text-white">
 										{item.asset}
 									</span>
 								</div>
 								<div className="flex items-center gap-2">
-									<span className="text-sm text-zinc-400 font-mono tabular-nums">
+									<span className="text-sm text-zinc-400 tabular-nums">
 										{item.percentage.toFixed(1)}%
 									</span>
 									<div

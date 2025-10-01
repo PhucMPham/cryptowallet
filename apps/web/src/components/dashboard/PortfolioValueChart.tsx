@@ -112,9 +112,32 @@ export function PortfolioValueChart({
 	const highPoint = chartData.find((d) => d.value === highValue);
 	const lowPoint = chartData.find((d) => d.value === lowValue);
 
+	// Get latest data point for display
+	const latestData = chartData[chartData.length - 1];
+	const latestDate = latestData
+		? format(new Date(latestData.date), "dd MMMM yyyy HH:mm")
+		: "";
+	const latestValue = latestData ? latestData.value : 0;
+	const formattedValue =
+		displayCurrency === "VND"
+			? `VND ${Number(latestValue).toLocaleString("vi-VN", {
+					minimumFractionDigits: 2,
+					maximumFractionDigits: 2,
+			  })}`
+			: `$${Number(latestValue).toLocaleString("en-US", {
+					minimumFractionDigits: 2,
+					maximumFractionDigits: 2,
+			  })}`;
+
 	return (
 		<Card className="bg-zinc-900 border-zinc-800">
 			<CardContent className="pt-6">
+				{/* Header with date and value */}
+				<div className="mb-4 space-y-1">
+					<p className="text-sm text-white">{latestDate}</p>
+					<p className="text-xl font-semibold text-white">{formattedValue}</p>
+				</div>
+
 				<ChartContainer config={chartConfig} className="h-[400px] w-full">
 					<AreaChart
 						accessibilityLayer
@@ -145,31 +168,46 @@ export function PortfolioValueChart({
 							tickMargin={8}
 							minTickGap={32}
 							stroke="#71717a"
+							tick={{ fill: "#ffffff" }}
 							tickFormatter={(value) => {
 								return format(new Date(value), "HH:mm");
 							}}
 						/>
 						<ChartTooltip
 							cursor={false}
-							content={
-								<ChartTooltipContent
-									hideLabel
-									className="bg-zinc-900 border-zinc-700"
-									formatter={(value) => {
-										const formattedValue =
-											displayCurrency === "VND"
-												? `₫${Number(value).toLocaleString("vi-VN", {
-														minimumFractionDigits: 0,
-														maximumFractionDigits: 0,
-												  })}`
-												: `$${Number(value).toLocaleString("en-US", {
-														minimumFractionDigits: 2,
-														maximumFractionDigits: 2,
-												  })}`;
-										return formattedValue;
-									}}
-								/>
-							}
+							content={({ active, payload }) => {
+								if (!active || !payload || payload.length === 0) {
+									return null;
+								}
+
+								const data = payload[0].payload;
+								const dateValue = data.date;
+								const value = data.value;
+
+								const formattedDate = dateValue
+									? format(new Date(dateValue), "dd MMM yyyy HH:mm")
+									: "";
+
+								const formattedValue =
+									displayCurrency === "VND"
+										? `₫${Number(value).toLocaleString("vi-VN", {
+												minimumFractionDigits: 0,
+												maximumFractionDigits: 0,
+										  })}`
+										: `$${Number(value).toLocaleString("en-US", {
+												minimumFractionDigits: 2,
+												maximumFractionDigits: 2,
+										  })}`;
+
+								return (
+									<div className="bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 shadow-xl">
+										<p className="text-xs text-zinc-400 mb-1">{formattedDate}</p>
+										<p className="text-sm font-semibold text-white">
+											{formattedValue}
+										</p>
+									</div>
+								);
+							}}
 						/>
 						<Area
 							dataKey="value"

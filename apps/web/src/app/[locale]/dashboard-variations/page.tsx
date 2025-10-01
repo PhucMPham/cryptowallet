@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { DashboardVariation1 } from "@/components/dashboard/DashboardVariation1";
 import { AssetsTableVariation1 } from "@/components/dashboard/AssetsTableVariation1";
 import { AssetsTableVariation2 } from "@/components/dashboard/AssetsTableVariation2";
@@ -11,6 +11,7 @@ import { Moon, Sun } from "lucide-react";
 
 export default function DashboardVariationsPage() {
 	const [darkMode, setDarkMode] = useState(false);
+	const [isClient, setIsClient] = useState(false);
 
 	// Generate sample chart data for the past 24 hours
 	const generateChartData = () => {
@@ -30,8 +31,14 @@ export default function DashboardVariationsPage() {
 	};
 
 	// State for chart data
-	const [chartData, setChartData] = useState(generateChartData());
+	const [chartData, setChartData] = useState<{ date: Date; value: number }[]>([]);
 	const [totalWorth, setTotalWorth] = useState(2125866628.73);
+
+	// Initialize chart data on client side only
+	useEffect(() => {
+		setChartData(generateChartData());
+		setIsClient(true);
+	}, []);
 
 	// Calculate 24h change dynamically
 	const calculate24hChange = () => {
@@ -186,6 +193,20 @@ export default function DashboardVariationsPage() {
 		console.log("New snapshot created:", newSnapshot);
 	};
 
+	// Show loading skeleton until client is ready
+	if (!isClient) {
+		return (
+			<div className={`min-h-screen bg-background transition-colors ${darkMode ? "dark" : ""}`}>
+				<div className="container mx-auto px-4 py-8 max-w-7xl">
+					<div className="animate-pulse space-y-8">
+						<div className="h-32 bg-muted rounded-xl" />
+						<div className="h-96 bg-muted rounded-xl" />
+					</div>
+				</div>
+			</div>
+		);
+	}
+
 	return (
 		<div className={`min-h-screen bg-background transition-colors ${darkMode ? "dark" : ""}`}>
 			<div className="container mx-auto px-4 py-8 max-w-7xl">
@@ -220,7 +241,7 @@ export default function DashboardVariationsPage() {
 								<h3 className="text-lg font-bold text-foreground">Variation 1: Compact Modern</h3>
 								<p className="text-sm text-muted-foreground">Clean table with subtle borders and hover effects</p>
 							</div>
-							<AssetsTableVariation1 assets={sampleAssets} />
+							<AssetsTableVariation1 assets={sampleAssets} onTransactionAdded={handleCreateSnapshot} />
 						</div>
 
 						<div>

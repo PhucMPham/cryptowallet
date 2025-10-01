@@ -1,10 +1,18 @@
 "use client";
 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ArrowUpRight, ArrowDownRight, MoreVertical } from "lucide-react";
+import { ArrowUpRight, ArrowDownRight, MoreVertical, Plus, List } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AnimatedNumber } from "./AnimatedNumber";
+import { AddTransactionDialog } from "./AddTransactionDialog";
 import { useEffect, useRef, useState } from "react";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { useRouter } from "next/navigation";
 
 interface Asset {
 	id: string;
@@ -22,11 +30,15 @@ interface Asset {
 
 interface AssetsTableVariation1Props {
 	assets: Asset[];
+	onTransactionAdded?: () => void;
 }
 
-export function AssetsTableVariation1({ assets }: AssetsTableVariation1Props) {
+export function AssetsTableVariation1({ assets, onTransactionAdded }: AssetsTableVariation1Props) {
+	const router = useRouter();
 	const [flashingRows, setFlashingRows] = useState<Set<string>>(new Set());
 	const prevAssetsRef = useRef<Asset[]>(assets);
+	const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+	const [selectedAssetSymbol, setSelectedAssetSymbol] = useState<string>("");
 
 	useEffect(() => {
 		const changedIds = new Set<string>();
@@ -171,14 +183,38 @@ export function AssetsTableVariation1({ assets }: AssetsTableVariation1Props) {
 								</div>
 							</TableCell>
 							<TableCell>
-								<Button variant="ghost" size="icon" className="h-8 w-8">
-									<MoreVertical className="h-4 w-4 text-muted-foreground" />
-								</Button>
+								<DropdownMenu>
+									<DropdownMenuTrigger asChild>
+										<Button variant="ghost" size="icon" className="h-8 w-8">
+											<MoreVertical className="h-4 w-4 text-muted-foreground" />
+										</Button>
+									</DropdownMenuTrigger>
+									<DropdownMenuContent align="end" className="w-48">
+										<DropdownMenuItem onClick={() => {
+											setSelectedAssetSymbol(asset.symbol);
+											setIsAddDialogOpen(true);
+										}}>
+											<Plus className="h-4 w-4 mr-2" />
+											Add Transaction
+										</DropdownMenuItem>
+										<DropdownMenuItem onClick={() => router.push(`/transaction?filter=${asset.symbol}`)}>
+											<List className="h-4 w-4 mr-2" />
+											Transactions
+										</DropdownMenuItem>
+									</DropdownMenuContent>
+								</DropdownMenu>
 							</TableCell>
 						</TableRow>
 					))}
 				</TableBody>
 			</Table>
+
+			<AddTransactionDialog
+				open={isAddDialogOpen}
+				onOpenChange={setIsAddDialogOpen}
+				preselectedSymbol={selectedAssetSymbol}
+				onSuccess={onTransactionAdded}
+			/>
 		</div>
 	);
 }

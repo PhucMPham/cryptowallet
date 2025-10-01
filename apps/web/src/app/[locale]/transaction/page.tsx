@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useEffect } from "react";
 import { useTranslations } from 'next-intl';
+import { useSearchParams } from 'next/navigation';
 import { api } from "@/utils/api";
 import { formatCurrency, formatVnd, formatPercent, formatCrypto } from "@/utils/formatters";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -59,10 +60,14 @@ interface Transaction {
 
 export default function TransactionPage() {
 	const t = useTranslations('transaction');
-	
+	const searchParams = useSearchParams();
+
+	// Get filter from URL parameter
+	const filterParam = searchParams.get('filter');
+
 	// State management
 	const [searchTerm, setSearchTerm] = useState("");
-	const [selectedAsset, setSelectedAsset] = useState<string>("all");
+	const [selectedAsset, setSelectedAsset] = useState<string>(filterParam || "all");
 	const [selectedType, setSelectedType] = useState<string>("all");
 	const [sortBy, setSortBy] = useState<string>("date");
 	const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
@@ -79,6 +84,13 @@ export default function TransactionPage() {
 
 	const vndRate = dashboardData?.vndRate?.usdToVnd || 25000;
 	const isLoading = dashboardLoading || transactionsLoading;
+
+	// Update selectedAsset when filter parameter changes
+	useEffect(() => {
+		if (filterParam) {
+			setSelectedAsset(filterParam);
+		}
+	}, [filterParam]);
 
 	// Debug logging for USDT transactions
 	useEffect(() => {
